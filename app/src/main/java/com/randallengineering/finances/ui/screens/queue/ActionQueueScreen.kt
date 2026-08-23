@@ -1,10 +1,8 @@
 package com.randallengineering.finances.ui.screens.queue
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -47,7 +50,6 @@ import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.core.util.DateUtils
 import com.randallengineering.finances.domain.model.Transaction
-import com.randallengineering.finances.ui.components.CategoryPickerDialog
 import com.randallengineering.finances.ui.components.DuoBlue
 import com.randallengineering.finances.ui.components.DuoBlueDark
 import com.randallengineering.finances.ui.components.DuoGold
@@ -61,36 +63,26 @@ import com.randallengineering.finances.ui.components.GamificationHud
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.abs
 
+private val QuickCategories = listOf(
+    Pair("🍔 Dining", Pair("Dining", "Restaurants & Fast Food")),
+    Pair("🛒 Groceries", Pair("Groceries", "Food & Pantry")),
+    Pair("🚗 Auto & Gas", Pair("Automotive", "Fuel & Maintenance")),
+    Pair("💡 Utilities", Pair("Utilities", "Electric, Gas & Internet")),
+    Pair("🛍️ Shopping", Pair("Shopping", "Retail & Electronics")),
+    Pair("🍿 Fun", Pair("Entertainment", "Movies & Recreation")),
+    Pair("🏥 Health", Pair("Health & Medical", "Pharmacy & Wellness")),
+    Pair("💼 Income", Pair("Income", "Salary & Deposits"))
+)
+
 @Composable
 fun ActionQueueScreen(
     viewModel: ActionQueueViewModel = koinViewModel(),
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var isEditingCategory by remember { mutableStateOf(false) }
-
     val currentTx = uiState.currentTransaction
 
-    val categoryRepository: com.randallengineering.finances.data.repository.CategoryRepository = org.koin.compose.koinInject()
-    val categories by categoryRepository.getCategoriesFlow().collectAsState(initial = com.randallengineering.finances.core.network.Resource.Success(emptyList()))
-    val categoryList = (categories as? com.randallengineering.finances.core.network.Resource.Success)?.data ?: emptyList()
-
-    if (isEditingCategory && currentTx != null) {
-        CategoryPickerDialog(
-            categories = categoryList,
-            initialMainCategory = currentTx.category,
-            initialSubCategory = currentTx.subCategory,
-            onDismiss = { isEditingCategory = false },
-            onCategorySelected = { cat, sub ->
-                viewModel.editCategory(currentTx, cat, sub)
-                isEditingCategory = false
-            },
-            onAddNewCategory = { main, sub ->
-                // Add new category
-                isEditingCategory = false
-            }
-        )
-    }
+    val isUncategorized = currentTx?.category.isNullOrBlank() || currentTx?.category.equals("Uncategorized", ignoreCase = true)
 
     Scaffold(
         topBar = {
@@ -101,9 +93,10 @@ fun ActionQueueScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(20.dp),
+                .padding(horizontal = 18.dp, vertical = 12.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Top Progress & Combo Status
             Column(
@@ -116,7 +109,7 @@ fun ActionQueueScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Daily Review Queue (${uiState.currentCardIndex}/${uiState.pendingTransactions.size})",
+                        text = "Daily Habit Review (${uiState.currentCardIndex}/${uiState.pendingTransactions.size})",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall
                     )
@@ -151,7 +144,6 @@ fun ActionQueueScreen(
                 )
             }
 
-            // Main Flashcard View
             if (uiState.isSessionComplete || currentTx == null) {
                 // Celebration Completion State
                 Card(
@@ -159,7 +151,7 @@ fun ActionQueueScreen(
                         .fillMaxWidth()
                         .padding(vertical = 24.dp),
                     shape = Shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier
@@ -168,10 +160,10 @@ fun ActionQueueScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text("🎉", style = MaterialTheme.typography.displayLarge)
+                        Text("🦉", style = MaterialTheme.typography.displayLarge)
                         Text("Queue Cleared!", fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium)
                         Text(
-                            text = "You verified all transactions and earned +${uiState.totalXpEarnedInSession} XP today! Your budget streak is secure.",
+                            text = "You verified all transactions and left 0 uncategorized! +${uiState.totalXpEarnedInSession} XP earned today. Streak is secure.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -192,31 +184,41 @@ fun ActionQueueScreen(
                     }
                 }
             } else {
-                // Active Transaction Review Card
+                // Duolingo Mascot Speech Prompt
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🦉", style = MaterialTheme.typography.headlineLarge)
+                    Spacer(Modifier.width(10.dp))
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (isUncategorized) DuoGold.copy(alpha = 0.18f) else DuoGreen.copy(alpha = 0.15f))
+                    ) {
+                        Text(
+                            text = if (isUncategorized) "Choose a category below to earn +25 XP and avoid heart loss!" else "Is this category correct? Confirm or change it below!",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isUncategorized) DuoGoldDark else DuoGreenDark,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
+                // Active Transaction Card
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = Shapes.large,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(Shapes.medium)
-                                .background(DuoBlue.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.CreditCard, contentDescription = null, tint = DuoBlue, modifier = Modifier.size(30.dp))
-                        }
-
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = currentTx.payee.ifBlank { currentTx.originalDesc },
@@ -240,60 +242,100 @@ fun ActionQueueScreen(
 
                         HorizontalDivider()
 
-                        // Auto-Categorized Category Chip
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        // Current Category Badge
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Text("Auto-Detected Category:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Current Category: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Card(
                                 shape = Shapes.small,
-                                colors = CardDefaults.cardColors(containerColor = DuoGreen.copy(alpha = 0.15f))
-                            ) {
-                                Text(
-                                    text = "🏷️ ${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
-                                    fontWeight = FontWeight.Bold,
-                                    color = DuoGreenDark,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isUncategorized) DuoRed.copy(alpha = 0.15f) else DuoGreen.copy(alpha = 0.15f)
                                 )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isUncategorized) {
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = DuoRedDark, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = if (isUncategorized) "Uncategorized (Action Required)" else "${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isUncategorized) DuoRedDark else DuoGreenDark,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Bottom Action Buttons
-            if (!uiState.isSessionComplete && currentTx != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // 1-Tap Category Grid (Direct 3D buttons)
+                Text(
+                    text = if (isUncategorized) "Select Category to Earn XP:" else "Or Change Category:",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DuolingoPressableButton(
-                        onClick = { isEditingCategory = true },
-                        backgroundColor = DuoBlue,
-                        shadowColor = DuoBlueDark,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Edit", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    for (i in QuickCategories.indices step 2) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val cat1 = QuickCategories[i]
+                            DuolingoPressableButton(
+                                onClick = { viewModel.editCategory(currentTx, cat1.second.first, cat1.second.second) },
+                                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                shadowColor = Color.LightGray,
+                                cornerRadius = 12.dp,
+                                shadowHeight = 3.dp,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(cat1.first, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                            }
 
-                    DuolingoPressableButton(
-                        onClick = { viewModel.confirmCategory(currentTx) },
-                        backgroundColor = DuoGreen,
-                        shadowColor = DuoGreenDark,
-                        modifier = Modifier.weight(1.6f)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Confirm (+${15 * uiState.comboMultiplier} XP)", color = Color.White, fontWeight = FontWeight.Bold)
+                            if (i + 1 < QuickCategories.size) {
+                                val cat2 = QuickCategories[i + 1]
+                                DuolingoPressableButton(
+                                    onClick = { viewModel.editCategory(currentTx, cat2.second.first, cat2.second.second) },
+                                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    shadowColor = Color.LightGray,
+                                    cornerRadius = 12.dp,
+                                    shadowHeight = 3.dp,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(cat2.first, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
                     }
                 }
-            } else {
-                Spacer(Modifier.height(10.dp))
+
+                // Bottom Confirmation Button (Only enabled if categorized!)
+                Spacer(Modifier.height(4.dp))
+                DuolingoPressableButton(
+                    onClick = { viewModel.confirmCategory(currentTx) },
+                    enabled = !isUncategorized,
+                    backgroundColor = DuoGreen,
+                    shadowColor = DuoGreenDark,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isUncategorized) {
+                        Text("⚠️ Choose Category Above to Confirm", color = Color.White, fontWeight = FontWeight.Bold)
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Confirm (${currentTx.category}) +${15 * uiState.comboMultiplier} XP", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

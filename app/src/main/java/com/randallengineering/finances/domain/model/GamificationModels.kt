@@ -46,7 +46,10 @@ enum class QuestNodeType {
     WEEKLY_BUDGET,
     SAVINGS_CHEST,
     BOSS_BATTLE,
-    FINANCIAL_QUIZ
+    FINANCIAL_QUIZ,
+    ZERO_SPEND,
+    AMAZON_MATCH,
+    INBOX_ZERO
 }
 
 @Serializable
@@ -58,6 +61,10 @@ data class QuestNode(
     val nodeType: QuestNodeType,
     val targetAmount: Double = 0.0,
     val currentAmount: Double = 0.0,
+    val progressText: String = "",
+    val progressPercent: Float = 0f,
+    val isCriteriaMet: Boolean = false,
+    val requirementDescription: String = "",
     val rewardXp: Int = 50,
     val rewardGems: Int = 10,
     val rewardEquipmentId: String? = null,
@@ -84,7 +91,7 @@ data class GamificationState(
     val equippedRelicId: String? = "relic_ring",
     val equippedPetId: String? = "pet_piggy",
     val inventoryGearIds: List<String> = listOf("head_visor", "chest_shield", "relic_ring", "pet_piggy", "head_crown", "chest_cloak"),
-    val completedNodeIds: List<String> = listOf("node_w1_d1", "node_w1_d2")
+    val completedNodeIds: List<String> = listOf("node_w1_d1")
 ) {
     val levelTitle: String
         get() = when (level) {
