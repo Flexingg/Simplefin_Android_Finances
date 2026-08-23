@@ -135,14 +135,12 @@ fun BudgetsScreen(
         )
     }
 
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
             // Income Category Status Bar
             Card(
                 modifier = Modifier
@@ -232,7 +230,6 @@ fun BudgetsScreen(
                 )
             }
         }
-    }
 }
 
 @Composable
