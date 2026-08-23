@@ -93,6 +93,7 @@ import java.util.UUID
 @Composable
 fun BudgetsScreen(
     viewModel: BudgetsViewModel = koinViewModel(),
+    initialTab: Int = 0,
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -100,6 +101,12 @@ fun BudgetsScreen(
     val mainCategoryGroups = calc?.mainCategoryGroups ?: emptyList()
     val totalMtdIncome = calc?.totalMtdIncome ?: 0.0
     val hasIncomeCategory = uiState.categories.any { it.mainCategory.equals(uiState.incomeCategory, ignoreCase = true) }
+
+    androidx.compose.runtime.LaunchedEffect(initialTab) {
+        if (initialTab in 0..3) {
+            viewModel.onTabSelect(initialTab)
+        }
+    }
 
     // 1. Create / Edit Budget Dialog
     if (uiState.isCreatingBudget || uiState.editingBudget != null) {
@@ -996,6 +1003,7 @@ private fun RulesTabContent(
 // Duolingo 3D Dialogs & Goal Editor
 // -------------------------------------------------------------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DuolingoGoalDialog(
     initialGoal: Goal?,
@@ -1006,6 +1014,20 @@ fun DuolingoGoalDialog(
     var targetText by remember { mutableStateOf(initialGoal?.targetAmount?.toString() ?: "1000.00") }
     var currentSavedText by remember { mutableStateOf(initialGoal?.currentAmount?.toString() ?: "0.00") }
     var category by remember { mutableStateOf(initialGoal?.category ?: "Savings") }
+
+    // Target Date State
+    var targetEpochSeconds by remember {
+        mutableStateOf(initialGoal?.targetEpochSeconds ?: ((System.currentTimeMillis() / 1000) + (365L * 24L * 3600L)))
+    }
+
+    val targetDateFormatted = remember(targetEpochSeconds) {
+        try {
+            val zdt = Instant.ofEpochSecond(targetEpochSeconds).atZone(ZoneId.systemDefault())
+            zdt.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        } catch (e: Exception) {
+            "Target Date"
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1040,6 +1062,54 @@ fun DuolingoGoalDialog(
                     singleLine = true
                 )
 
+                // Target Date Selector
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Target Completion Date:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        Text(targetDateFormatted, fontWeight = FontWeight.Black, color = DuoGoldDark, style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "- 1 Mo" to -30L * 24 * 3600,
+                            "+ 1 Mo" to 30L * 24 * 3600,
+                            "+ 3 Mo" to 90L * 24 * 3600,
+                            "+ 6 Mo" to 180L * 24 * 3600,
+                            "+ 1 Yr" to 365L * 24 * 3600,
+                            "+ 2 Yr" to 730L * 24 * 3600,
+                            "+ 5 Yr" to 1825L * 24 * 3600
+                        ).forEach { (label, delta) ->
+                            Card(
+                                modifier = Modifier
+                                    .clip(Shapes.small)
+                                    .clickable {
+                                        val now = System.currentTimeMillis() / 1000
+                                        targetEpochSeconds = maxOf(now + (30L * 24 * 3600), targetEpochSeconds + delta)
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
                 Text("Goal Category:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Savings", "Wants", "Investment").forEach { cat ->
@@ -1068,18 +1138,18 @@ fun DuolingoGoalDialog(
                     val target = targetText.toDoubleOrNull() ?: 0.0
                     val current = currentSavedText.toDoubleOrNull() ?: 0.0
                     if (title.isNotBlank() && target > 0) {
-                        val oneYearFromNow = (System.currentTimeMillis() / 1000) + (365 * 24 * 3600)
                         val goal = (initialGoal ?: Goal(
                             id = UUID.randomUUID().toString(),
                             title = title.trim(),
                             targetAmount = target,
                             currentAmount = current,
-                            targetEpochSeconds = oneYearFromNow,
+                            targetEpochSeconds = targetEpochSeconds,
                             category = category
                         )).copy(
                             title = title.trim(),
                             targetAmount = target,
                             currentAmount = current,
+                            targetEpochSeconds = targetEpochSeconds,
                             category = category,
                             isCompleted = current >= target
                         )

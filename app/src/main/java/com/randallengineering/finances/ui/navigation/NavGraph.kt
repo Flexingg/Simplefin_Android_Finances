@@ -192,7 +192,7 @@ fun FinanceNavHost(
                 InsightsScreen()
             }
             composable(Screen.Goals.route) {
-                GoalsAndWantsScreen()
+                BudgetsScreen(initialTab = 1)
             }
             composable(Screen.AiAdvisor.route) {
                 AiAdvisorScreen()
