@@ -303,12 +303,12 @@ fun ActionQueueScreen(
 
                         HorizontalDivider()
 
-                        // Current Category Badge
+                        // Current Category Badge & Quick Split Trigger
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Current: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Card(
                                 shape = Shapes.small,
                                 colors = CardDefaults.cardColors(
@@ -330,6 +330,30 @@ fun ActionQueueScreen(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
+                            }
+
+                            // Quick Split Button
+                            var showSplitModal by remember { mutableStateOf(false) }
+                            if (showSplitModal) {
+                                com.randallengineering.finances.ui.components.DuolingoSplitModal(
+                                    transaction = currentTx,
+                                    categories = uiState.availableCategories,
+                                    onDismiss = { showSplitModal = false },
+                                    onConfirmSplits = { splits ->
+                                        viewModel.splitTransaction(currentTx, splits)
+                                        showSplitModal = false
+                                    }
+                                )
+                            }
+
+                            DuolingoPressableButton(
+                                onClick = { showSplitModal = true },
+                                backgroundColor = DuoBlue,
+                                shadowColor = DuoBlueDark,
+                                cornerRadius = 8.dp,
+                                shadowHeight = 2.dp
+                            ) {
+                                Text("✂️ Split", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }

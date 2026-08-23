@@ -6,8 +6,10 @@ import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.repository.CategoryRepository
 import com.randallengineering.finances.data.repository.GamificationRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
+import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Transaction
+import com.randallengineering.finances.domain.model.TransactionSplit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -107,6 +109,28 @@ class ActionQueueViewModel(
             transactionRepository.saveTransaction(updated)
             val gainedXp = gamificationRepository.addXp(10, newCategory)
             _sessionXp.value += gainedXp
+            _currentIndex.value += 1
+        }
+    }
+
+    fun splitTransaction(tx: Transaction, splits: List<TransactionSplit>) {
+        viewModelScope.launch {
+            val primaryCat = splits.firstOrNull()?.category ?: tx.category
+            val primarySub = splits.firstOrNull()?.subCategory ?: tx.subCategory
+            val notesSummary = splits.joinToString(", ") { "${it.category} (${CurrencyFormatter.format(it.amount)})" }
+
+            val updated = tx.copy(
+                category = primaryCat,
+                subCategory = primarySub,
+                splits = splits,
+                notes = if (tx.notes.isNotBlank()) "${tx.notes} | Split: $notesSummary" else "Split: $notesSummary"
+            )
+            transactionRepository.saveTransaction(updated)
+
+            val combo = _combo.value
+            val gainedXp = gamificationRepository.addXp(35 * combo, primaryCat)
+            _sessionXp.value += gainedXp
+            _combo.value = (combo + 1).coerceAtMost(5)
             _currentIndex.value += 1
         }
     }
