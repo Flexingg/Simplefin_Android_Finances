@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -75,17 +76,54 @@ fun TransactionDetailScreen(
         uiState.transactions.find { it.id == transactionId }
     }
 
-    // Receipt File Picker Launcher
+    // Receipt File Picker Launcher with ML Kit OCR
     val receiptPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null && transaction != null) {
-            viewModel.uploadReceipt(
+            viewModel.processAndScanReceipt(
+                context = context,
                 transactionId = transaction.id,
-                uri = uri,
-                fileName = "receipt_${System.currentTimeMillis()}.jpg"
+                uri = uri
             )
         }
+    }
+
+    // ML Kit Scanned Receipt Confirmation Dialog
+    if (uiState.scannedReceipt != null && transaction != null) {
+        val parsed = uiState.scannedReceipt!!
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissScannedReceipt() },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⚡", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.width(8.dp))
+                    Text("AI Scanned Receipt", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Merchant: ${parsed.merchantName.ifBlank { "Not detected" }}", fontWeight = FontWeight.Bold)
+                    if (parsed.totalAmount > 0) {
+                        Text("Detected Total: ${CurrencyFormatter.format(parsed.totalAmount)}", fontWeight = FontWeight.Bold, color = FinanceGreen)
+                    }
+                    Text("Auto-fill this merchant name into the transaction?", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.applyScannedReceiptToTransaction(transaction) },
+                    colors = ButtonDefaults.buttonColors(containerColor = FinanceGreen)
+                ) {
+                    Text("Apply Info ➔", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { viewModel.dismissScannedReceipt() }) {
+                    Text("Keep Current")
+                }
+            }
+        )
     }
 
     // Split modal dialog

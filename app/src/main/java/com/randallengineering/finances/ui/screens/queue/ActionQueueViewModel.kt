@@ -12,11 +12,13 @@ import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.model.TransactionSplit
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -132,7 +134,9 @@ class ActionQueueViewModel(
             rules = existingRules,
             lastRuleCreatedMessage = ruleMsg
         )
-    }.stateIn(
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ActionQueueUiState()
@@ -255,9 +259,13 @@ class ActionQueueViewModel(
             ruleRepository.saveRule(newRule)
 
             // Apply to existing transactions
-            val (updatedTxs, count) = ruleRepository.applySingleRule(newRule, cachedAllTransactions)
+            val updatedTxs = cachedAllTransactions.mapNotNull { t ->
+                if (!t.isSplit && newRule.matches(t.originalDesc, t.amount)) {
+                    t.copy(category = newRule.category, subCategory = newRule.subCategory, matchedRuleId = newRule.id)
+                } else null
+            }
             if (updatedTxs.isNotEmpty()) {
-                transactionRepository.saveTransactionsBatch(updatedTxs)
+                transactionRepository.saveTransactions(updatedTxs)
             }
 
             // Update current transaction
@@ -276,7 +284,7 @@ class ActionQueueViewModel(
             _sessionXp.value += gainedXp
             _combo.value = (combo + 1).coerceAtMost(5)
 
-            _ruleMessage.value = "⚡ Auto-Rule created for \"$safePattern\" & applied to $count transactions (+35 XP!)"
+            _ruleMessage.value = "⚡ Auto-Rule created for \"$safePattern\" & applied to ${updatedTxs.size} transactions (+35 XP!)"
             _currentIndex.value += 1
         }
     }

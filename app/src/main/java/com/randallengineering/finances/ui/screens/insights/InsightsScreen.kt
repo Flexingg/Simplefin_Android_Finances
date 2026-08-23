@@ -1,16 +1,16 @@
 package com.randallengineering.finances.ui.screens.insights
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,12 +23,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.TrendingUp
@@ -42,20 +46,19 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,21 +66,21 @@ import com.randallengineering.finances.core.theme.FinanceGreen
 import com.randallengineering.finances.core.theme.FinanceRed
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
-import com.randallengineering.finances.ui.components.ExpressiveCard
+import com.randallengineering.finances.ui.components.*
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.max
 
 private val ChartColors = listOf(
-    Color(0xFF6750A4), // Primary Purple
-    Color(0xFF006C4C), // Forest Green
-    Color(0xFF00639B), // Ocean Blue
-    Color(0xFFB3261E), // Crimson Red
-    Color(0xFFE28743), // Warm Orange
-    Color(0xFF006A6A), // Teal
-    Color(0xFF7D5260), // Rose
-    Color(0xFF825500), // Amber
-    Color(0xFF4A6572), // Slate
-    Color(0xFF9E4770)  // Berry
+    Color(0xFF6750A4),
+    Color(0xFF006C4C),
+    Color(0xFF00639B),
+    Color(0xFFB3261E),
+    Color(0xFFE28743),
+    Color(0xFF006A6A),
+    Color(0xFF7D5260),
+    Color(0xFF825500),
+    Color(0xFF4A6572),
+    Color(0xFF9E4770)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,9 +95,9 @@ fun InsightsScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.BarChart, contentDescription = null, tint = DuoGreen)
                         Spacer(Modifier.width(8.dp))
-                        Text("Insights & Analytics", fontWeight = FontWeight.Bold)
+                        Text("Insights & Analytics", fontWeight = FontWeight.Black)
                     }
                 }
             )
@@ -103,312 +106,141 @@ fun InsightsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Timeframe Selector Chips
-            TimeRangeFilterRow(
-                selectedRange = uiState.selectedTimeRange,
-                onSelectRange = { viewModel.selectTimeRange(it) }
-            )
-
-            // Cash Flow Summary Hero Card
-            CashFlowHeroCard(
-                totalIncome = uiState.totalIncome,
-                totalExpenses = uiState.totalExpenses,
-                netCashflow = uiState.netCashflow,
-                savingsRate = uiState.savingsRate,
-                avgDailySpend = uiState.averageDailySpend,
-                txCount = uiState.filteredTransactions.size
-            )
-
-            // Category Breakdown Donut & List
-            CategoryBreakdownSection(
-                categories = uiState.categoryBreakdown,
-                totalExpenses = uiState.totalExpenses
-            )
-
-            // Daily Spending Timeline
-            if (uiState.dailySpendingTrend.isNotEmpty()) {
-                DailySpendingChartSection(dailyTrend = uiState.dailySpendingTrend)
-            }
-
-            // Top Merchants
-            if (uiState.topMerchants.isNotEmpty()) {
-                TopMerchantsSection(merchants = uiState.topMerchants)
-            }
-        }
-    }
-}
-
-@Composable
-fun TimeRangeFilterRow(
-    selectedRange: TimeRange,
-    onSelectRange: (TimeRange) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        TimeRange.entries.forEach { range ->
-            val isSelected = range == selectedRange
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelectRange(range) },
-                label = {
-                    Text(
-                        text = range.label,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                    )
-                },
-                shape = Shapes.small,
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+            PrimaryTabRow(
+                selectedTabIndex = uiState.selectedInsightsTab,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Tab(
+                    selected = uiState.selectedInsightsTab == 0,
+                    onClick = { viewModel.selectInsightsTab(0) },
+                    text = { Text("📊 Spending Trends", fontWeight = FontWeight.Bold) }
                 )
-            )
-        }
-    }
-}
-
-@Composable
-fun CashFlowHeroCard(
-    totalIncome: Double,
-    totalExpenses: Double,
-    netCashflow: Double,
-    savingsRate: Double,
-    avgDailySpend: Double,
-    txCount: Int
-) {
-    ExpressiveCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = Shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Net Cashflow
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Net Cash Flow",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = CurrencyFormatter.format(netCashflow),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (netCashflow >= 0) FinanceGreen else FinanceRed
-                    )
-                }
-
-                Card(
-                    shape = Shapes.small,
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (savingsRate >= 0) FinanceGreen.copy(alpha = 0.15f) else FinanceRed.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            if (savingsRate >= 0) Icons.Default.TrendingUp else Icons.Default.ArrowDownward,
-                            contentDescription = null,
-                            tint = if (savingsRate >= 0) FinanceGreen else FinanceRed,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${savingsRate.toInt()}% Saved",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (savingsRate >= 0) FinanceGreen else FinanceRed
-                        )
-                    }
-                }
+                Tab(
+                    selected = uiState.selectedInsightsTab == 1,
+                    onClick = { viewModel.selectInsightsTab(1) },
+                    text = { Text("🗓️ Heatmap", fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = uiState.selectedInsightsTab == 2,
+                    onClick = { viewModel.selectInsightsTab(2) },
+                    text = { Text("💰 Net Worth & Debt", fontWeight = FontWeight.Bold) }
+                )
             }
 
-            HorizontalDivider()
-
-            // Inflow vs Outflow
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = FinanceGreen, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Income (Inflow)", style = MaterialTheme.typography.labelSmall)
-                    }
-                    Text(
-                        text = CurrencyFormatter.format(totalIncome),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = FinanceGreen
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = FinanceRed, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Expenses (Outflow)", style = MaterialTheme.typography.labelSmall)
-                    }
-                    Text(
-                        text = CurrencyFormatter.format(totalExpenses),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = FinanceRed
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Daily Velocity", style = MaterialTheme.typography.labelSmall)
-                    Text(
-                        text = "${CurrencyFormatter.format(avgDailySpend)}/day",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+            when (uiState.selectedInsightsTab) {
+                0 -> TrendsTabContent(uiState, viewModel)
+                1 -> HeatmapTabContent(uiState)
+                2 -> NetWorthAndDebtTabContent(uiState, viewModel)
             }
         }
     }
 }
 
+// -------------------------------------------------------------
+// 1. Spending Trends & Category Breakdown
+// -------------------------------------------------------------
+
 @Composable
-fun CategoryBreakdownSection(
-    categories: List<CategorySpendItem>,
-    totalExpenses: Double
+private fun TrendsTabContent(
+    uiState: InsightsUiState,
+    viewModel: InsightsViewModel
 ) {
-    ExpressiveCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = Shapes.large
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        // Time Range Filter Row
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TimeRange.entries.forEach { range ->
+                    val isSelected = range == uiState.selectedTimeRange
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { viewModel.selectTimeRange(range) },
+                        label = { Text(range.label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = DuoGreen.copy(alpha = 0.2f),
+                            selectedLabelColor = DuoGreenDark
+                        )
+                    )
+                }
+            }
+        }
+
+        // Summary KPI Metrics
+        item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.PieChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Spending by Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                Text("${categories.size} categories", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            if (categories.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No expenses recorded in this period", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                // Donut Chart
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    DonutChartCanvas(
-                        categories = categories,
-                        modifier = Modifier.size(160.dp)
-                    )
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            text = CurrencyFormatter.format(totalExpenses),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                ExpressiveCard(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = FinanceGreen, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Total Income", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(CurrencyFormatter.format(uiState.totalIncome), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceGreen)
                     }
                 }
 
-                // Category List Breakdown
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    categories.forEachIndexed { index, item ->
-                        val sliceColor = ChartColors[index % ChartColors.size]
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(10.dp)
-                                            .clip(CircleShape)
-                                            .background(sliceColor)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = item.category,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = "(${item.count})",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                ExpressiveCard(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = FinanceRed, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Total Outflows", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(CurrencyFormatter.format(uiState.totalExpenses), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceRed)
+                    }
+                }
+            }
+        }
 
-                                Row {
-                                    Text(
-                                        text = CurrencyFormatter.format(item.totalAmount),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = "${item.percentageOfTotal.toInt()}%",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+        // Multi-Month Trends Comparison (Last 6 Months)
+        item {
+            ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = DuoBlue)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Month-over-Month Trends (6 Mo)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    uiState.monthlyTrends.forEach { trend ->
+                        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(trend.monthLabel, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = "Spent ${CurrencyFormatter.format(trend.totalExpenses)} / Saved ${CurrencyFormatter.format(trend.netSavings)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (trend.netSavings >= 0) FinanceGreen else FinanceRed,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
-                            Spacer(Modifier.height(4.dp))
+                            val maxVal = max(1.0, uiState.monthlyTrends.maxOf { max(it.totalIncome, it.totalExpenses) })
                             LinearProgressIndicator(
-                                progress = { (item.percentageOfTotal / 100.0).toFloat().coerceIn(0f, 1f) },
+                                progress = { (trend.totalExpenses / maxVal).toFloat().coerceIn(0f, 1f) },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(6.dp)
-                                    .clip(Shapes.small),
-                                color = sliceColor,
+                                    .height(8.dp)
+                                    .clip(CircleShape),
+                                color = if (trend.netSavings >= 0) DuoBlue else DuoRed,
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         }
@@ -416,101 +248,131 @@ fun CategoryBreakdownSection(
                 }
             }
         }
-    }
-}
 
-@Composable
-fun DonutChartCanvas(
-    categories: List<CategorySpendItem>,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val strokeWidth = 24.dp.toPx()
-        val total = categories.sumOf { it.totalAmount }
-        if (total <= 0.0) return@Canvas
+        // Category Breakdown List
+        item {
+            Text("Spending by Category", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        }
 
-        var startAngle = -90f
-        categories.forEachIndexed { index, item ->
-            val sweep = ((item.totalAmount / total) * 360f).toFloat()
-            val color = ChartColors[index % ChartColors.size]
-
-            drawArc(
-                color = color,
-                startAngle = startAngle,
-                sweepAngle = max(sweep - 2f, 1f), // Small gap between slices
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
-                size = Size(size.width - strokeWidth, size.height - strokeWidth)
-            )
-            startAngle += sweep
+        items(uiState.categoryBreakdown) { cat ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(cat.category, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text("${cat.count} transactions • ${String.format("%.1f", cat.percentageOfTotal)}% of total", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(CurrencyFormatter.format(cat.totalAmount), fontWeight = FontWeight.Black, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
         }
     }
 }
 
+// -------------------------------------------------------------
+// 2. Interactive Spending Heatmap Calendar
+// -------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DailySpendingChartSection(
-    dailyTrend: List<DaySpendItem>
-) {
-    ExpressiveCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = Shapes.large
+private fun HeatmapTabContent(uiState: InsightsUiState) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.ShowChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text("Spending Trend Timeline", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+        item {
+            ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = DuoGreen)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Current Month Spending Intensity", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
 
-            val maxAmount = remember(dailyTrend) {
-                dailyTrend.maxOfOrNull { it.amount }?.coerceAtLeast(10.0) ?: 100.0
-            }
+                    Text(
+                        text = "Visual heatmap of daily cash outflows. Darker green indicates lower/zero spending, while gold/red highlights high expenditure days.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-            // Timeline Bar Chart
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp)
-                    .horizontalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                dailyTrend.forEach { day ->
-                    val barHeightFraction = (day.amount / maxAmount).toFloat().coerceIn(0.08f, 1f)
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
-                        modifier = Modifier.fillMaxHeight()
+                    // Heatmap Grid
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        maxItemsInEachRow = 7
                     ) {
-                        Text(
-                            text = "$${day.amount.toInt()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(20.dp)
-                                .fillMaxHeight(barHeightFraction)
-                                .clip(Shapes.small)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = day.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        uiState.currentMonthHeatmap.forEach { day ->
+                            val color = when (day.intensityLevel) {
+                                0 -> DuoGreen.copy(alpha = 0.85f)      // $0 (Duolingo Green Success)
+                                1 -> Color(0xFF66BB6A)                  // <$25 (Light Green)
+                                2 -> DuoGold                            // <$75 (Amber)
+                                3 -> Color(0xFFFF7043)                  // <$150 (Orange)
+                                else -> DuoRed                          // $150+ (Red Peak)
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(Shapes.small)
+                                    .background(color),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "${day.dayOfMonth}",
+                                        fontWeight = FontWeight.Black,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White
+                                    )
+                                    if (day.spendAmount > 0) {
+                                        Text(
+                                            text = "\$${day.spendAmount.toInt()}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.White.copy(alpha = 0.9f)
+                                        )
+                                    } else {
+                                        Text("🛡️", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+
+                    // Legend
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Intensity:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoGreen))
+                            Text("\$0", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(4.dp))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoGold))
+                            Text("<\$75", style = MaterialTheme.typography.labelSmall)
+                            Spacer(Modifier.width(4.dp))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoRed))
+                            Text("\$150+", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
@@ -518,62 +380,118 @@ fun DailySpendingChartSection(
     }
 }
 
-@Composable
-fun TopMerchantsSection(
-    merchants: List<MerchantSpendItem>
-) {
-    ExpressiveCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = Shapes.large
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Store, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
-                Text("Top Spending Destinations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+// -------------------------------------------------------------
+// 3. Net Worth & Debt Payoff Tracker
+// -------------------------------------------------------------
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                merchants.forEachIndexed { index, merch ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "${index + 1}.",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = merch.merchant,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
+@Composable
+private fun NetWorthAndDebtTabContent(
+    uiState: InsightsUiState,
+    viewModel: InsightsViewModel
+) {
+    val sim = uiState.debtSimulation
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Net Worth Banner
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoGold.copy(alpha = 0.15f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("💎", style = MaterialTheme.typography.displayMedium)
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Estimated Net Cash Flow Vault", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
+                        Text(
+                            text = CurrencyFormatter.format(uiState.estimatedNetWorth),
+                            fontWeight = FontWeight.Black,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = FinanceGreen
+                        )
+                        Text("Cumulative liquidity calculated across connected SimpleFIN accounts.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // Debt Payoff Simulator
+        item {
+            ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CreditCard, contentDescription = null, tint = DuoBlue)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Debt Payoff Accelerator", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    Text("Simulate debt-free timelines by adjusting your monthly debt acceleration payment.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    // Strategy Selector (Snowball vs Avalanche)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DuolingoPressableButton(
+                            onClick = { viewModel.setDebtStrategy("Snowball") },
+                            backgroundColor = if (sim.strategy == "Snowball") DuoGreen else DuoCardDark,
+                            shadowColor = if (sim.strategy == "Snowball") DuoGreenDark else DuoCardShadow,
+                            cornerRadius = 8.dp,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("❄️ Snowball (Smallest First)", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                         }
 
-                        Row {
-                            Text(
-                                text = CurrencyFormatter.format(merch.totalAmount),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "(${merch.count}x)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        DuolingoPressableButton(
+                            onClick = { viewModel.setDebtStrategy("Avalanche") },
+                            backgroundColor = if (sim.strategy == "Avalanche") DuoBlue else DuoCardDark,
+                            shadowColor = if (sim.strategy == "Avalanche") DuoBlueDark else DuoCardShadow,
+                            cornerRadius = 8.dp,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("⚡ Avalanche (Highest APR)", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    Text("Monthly Debt Payment: ${CurrencyFormatter.format(sim.monthlyPaymentAmount)}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+
+                    Slider(
+                        value = sim.monthlyPaymentAmount.toFloat(),
+                        onValueChange = { viewModel.updateDebtPayoffMonthlyPayment(it.toDouble()) },
+                        valueRange = 100f..1500f,
+                        steps = 13
+                    )
+
+                    // Results Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = Shapes.medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Time to Debt-Free", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${sim.estimatedMonthsToDebtFree} Months", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoBlueDark)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Est. Interest Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(CurrencyFormatter.format(sim.totalInterestPaid), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoRedDark)
+                            }
                         }
                     }
                 }

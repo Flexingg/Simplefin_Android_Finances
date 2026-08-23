@@ -5,10 +5,16 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.BudgetEntity
 import com.randallengineering.finances.domain.model.Budget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -19,14 +25,17 @@ class BudgetRepository(
 ) {
     private val prefs = context.getSharedPreferences("randall_finances_budgets", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
+    private val ioScope = CoroutineScope(Dispatchers.IO)
     private val _budgetsFlow = MutableStateFlow<List<Budget>>(emptyList())
 
     init {
-        loadLocalBudgets()
-        attachFirestoreListenerIfAvailable()
+        ioScope.launch {
+            loadLocalBudgets()
+            attachFirestoreListenerIfAvailable()
+        }
     }
 
-    private fun loadLocalBudgets() {
+    private suspend fun loadLocalBudgets() = withContext(Dispatchers.IO) {
         try {
             val raw = prefs.getString("cached_budgets", null)
             if (!raw.isNullOrBlank()) {
@@ -38,7 +47,7 @@ class BudgetRepository(
         }
     }
 
-    private fun saveLocalBudgets(list: List<Budget>) {
+    private suspend fun saveLocalBudgets(list: List<Budget>) = withContext(Dispatchers.IO) {
         try {
             _budgetsFlow.value = list
             prefs.edit().putString("cached_budgets", json.encodeToString(list)).apply()
@@ -52,11 +61,13 @@ class BudgetRepository(
             firestore?.collection("budgets")
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
-                        val list = snapshot.documents.mapNotNull { doc ->
-                            doc.toObject(BudgetEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                        }
-                        if (list.isNotEmpty()) {
-                            saveLocalBudgets(list)
+                        ioScope.launch {
+                            val list = snapshot.documents.mapNotNull { doc ->
+                                doc.toObject(BudgetEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                            }
+                            if (list.isNotEmpty()) {
+                                saveLocalBudgets(list)
+                            }
                         }
                     }
                 }
@@ -66,40 +77,49 @@ class BudgetRepository(
     }
 
     fun getBudgetsFlow(): Flow<Resource<List<Budget>>> {
-        return _budgetsFlow.asStateFlow().map { list ->
-            Resource.Success(list)
+        return _budgetsFlow.asStateFlow()
+            .map { Resource.Success(it) }
+            .flowOn(Dispatchers.Default)
+    }
+
+    suspend fun saveBudget(budget: Budget): Resource<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val current = _budgetsFlow.value.toMutableList()
+            val existingIndex = current.indexOfFirst {
+                it.id == budget.id || (it.category.equals(budget.category, ignoreCase = true) && it.subCategory.equals(budget.subCategory, ignoreCase = true))
+            }
+            val toSave = if (budget.id.isBlank()) budget.copy(id = UUID.randomUUID().toString()) else budget
+            if (existingIndex >= 0) {
+                current[existingIndex] = toSave
+            } else {
+                current.add(toSave)
+            }
+            saveLocalBudgets(current)
+
+            firestore?.collection("budgets")
+                ?.document(toSave.id)
+                ?.set(BudgetEntity.fromDomain(toSave))
+                ?.await()
+
+            Resource.Success(Unit)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Failed to save budget")
         }
     }
 
-    suspend fun saveBudget(budget: Budget): Resource<Unit> {
-        val safeBudget = if (budget.id.isBlank()) budget.copy(id = UUID.randomUUID().toString()) else budget
-        val current = _budgetsFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.id == safeBudget.id }
-        if (index >= 0) {
-            current[index] = safeBudget
-        } else {
-            current.add(safeBudget)
-        }
-        saveLocalBudgets(current)
-
+    suspend fun deleteBudget(id: String): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            firestore?.collection("budgets")?.document(safeBudget.id)
-                ?.set(BudgetEntity.fromDomain(safeBudget))
-        } catch (e: Exception) {
-            // Ignored if offline
-        }
-        return Resource.Success(Unit)
-    }
+            val current = _budgetsFlow.value.filterNot { it.id == id }
+            saveLocalBudgets(current)
 
-    suspend fun deleteBudget(budgetId: String): Resource<Unit> {
-        val current = _budgetsFlow.value.filter { it.id != budgetId }
-        saveLocalBudgets(current)
+            firestore?.collection("budgets")
+                ?.document(id)
+                ?.delete()
+                ?.await()
 
-        try {
-            firestore?.collection("budgets")?.document(budgetId)?.delete()
+            Resource.Success(Unit)
         } catch (e: Exception) {
-            // Ignored if offline
+            Resource.Error(e.localizedMessage ?: "Failed to delete budget")
         }
-        return Resource.Success(Unit)
     }
 }

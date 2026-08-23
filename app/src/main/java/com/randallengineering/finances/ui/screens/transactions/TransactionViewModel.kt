@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.randallengineering.finances.core.ml.ParsedReceipt
+import com.randallengineering.finances.core.ml.ReceiptOcrScanner
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
@@ -35,6 +37,8 @@ data class TransactionsUiState(
     val selectedTransactionForCategoryPicker: Transaction? = null,
     val selectedTransactionForRuleGen: Transaction? = null,
     val isUploadingReceipt: Boolean = false,
+    val isScanningReceipt: Boolean = false,
+    val scannedReceipt: ParsedReceipt? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null
 )
@@ -272,6 +276,53 @@ class TransactionViewModel(
                 is Resource.Loading -> Unit
             }
         }
+    }
+
+    fun processAndScanReceipt(
+        context: Context,
+        transactionId: String,
+        uri: Uri
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isScanningReceipt = true, isUploadingReceipt = true, errorMessage = null) }
+
+            // 1. Run local ML Kit OCR
+            val parsed = ReceiptOcrScanner.scanReceipt(context, uri)
+
+            // 2. Upload photo in background
+            val fileName = "receipt_${System.currentTimeMillis()}.jpg"
+            when (val uploadResult = storageRepository.uploadReceipt("default_user", transactionId, fileName, uri, "image/jpeg")) {
+                is Resource.Success -> {
+                    transactionRepository.attachReceiptUrl(transactionId, uploadResult.data)
+                }
+                else -> Unit
+            }
+
+            _uiState.update {
+                it.copy(
+                    isScanningReceipt = false,
+                    isUploadingReceipt = false,
+                    scannedReceipt = parsed,
+                    successMessage = if (parsed.merchantName.isNotBlank()) "Receipt parsed: ${parsed.merchantName}" else "Receipt attached successfully!"
+                )
+            }
+        }
+    }
+
+    fun applyScannedReceiptToTransaction(transaction: Transaction) {
+        val parsed = _uiState.value.scannedReceipt ?: return
+        viewModelScope.launch {
+            val updated = transaction.copy(
+                payee = if (parsed.merchantName.isNotBlank()) parsed.merchantName else transaction.payee,
+                notes = if (parsed.merchantName.isNotBlank()) "Scanned Receipt: ${parsed.merchantName} (${parsed.totalAmount})" else transaction.notes
+            )
+            transactionRepository.saveTransaction(updated)
+            _uiState.update { it.copy(scannedReceipt = null, successMessage = "Receipt info applied to transaction!") }
+        }
+    }
+
+    fun dismissScannedReceipt() {
+        _uiState.update { it.copy(scannedReceipt = null) }
     }
 
     fun openAmazonOrders(context: Context) {

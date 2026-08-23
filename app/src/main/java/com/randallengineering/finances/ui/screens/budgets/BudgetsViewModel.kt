@@ -16,10 +16,12 @@ import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.usecase.BudgetCalculationResult
 import com.randallengineering.finances.domain.usecase.BudgetCalculatorUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -125,7 +127,9 @@ class BudgetsViewModel(
                     hasAutoRunExecuted = true
                     runAllRules()
                 }
-            }.collect {}
+            }
+            .flowOn(Dispatchers.Default)
+            .collect {}
         }
     }
 
@@ -212,6 +216,15 @@ class BudgetsViewModel(
         }
     }
 
+    fun resetMonthRollover(budget: Budget) {
+        viewModelScope.launch {
+            val currentMonth = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"))
+            val updatedMonths = (budget.rolloverResetMonths + currentMonth).distinct()
+            budgetRepository.saveBudget(budget.copy(rolloverResetMonths = updatedMonths))
+            closeDialogs()
+        }
+    }
+
     fun deleteBudget(budgetId: String) {
         viewModelScope.launch {
             budgetRepository.deleteBudget(budgetId)
@@ -251,34 +264,34 @@ class BudgetsViewModel(
 
     fun renameMainCategory(oldMain: String, newMain: String) {
         viewModelScope.launch {
-            categoryRepository.renameMainCategory(oldMain, newMain)
+            categoryRepository.renameCategory(oldMain, newMain)
             closeDialogs()
         }
     }
 
     fun addSubCategory(mainCategory: String, subCategory: String) {
         viewModelScope.launch {
-            categoryRepository.addSubCategory(mainCategory, subCategory)
+            categoryRepository.addOrUpdateCategory(mainCategory, subCategory)
             closeDialogs()
         }
     }
 
     fun renameSubCategory(mainCategory: String, oldSub: String, newSub: String) {
         viewModelScope.launch {
-            categoryRepository.renameSubCategory(mainCategory, oldSub, newSub)
+            categoryRepository.renameSubcategory(mainCategory, oldSub, newSub)
             closeDialogs()
         }
     }
 
     fun deleteSubCategory(mainCategory: String, subCategory: String) {
         viewModelScope.launch {
-            categoryRepository.deleteSubCategory(mainCategory, subCategory)
+            categoryRepository.deleteSubcategory(mainCategory, subCategory)
         }
     }
 
     fun deleteMainCategory(mainCategory: String) {
         viewModelScope.launch {
-            categoryRepository.deleteMainCategory(mainCategory)
+            categoryRepository.deleteCategory(mainCategory)
         }
     }
 
@@ -287,9 +300,16 @@ class BudgetsViewModel(
             ruleRepository.saveRule(rule)
             
             // Automatically execute this rule upon save!
-            val (updatedTxs, count) = ruleRepository.applySingleRule(rule, currentTransactions)
+            var count = 0
+            val updatedTxs = currentTransactions.mapNotNull { tx ->
+                if (tx.isSplit) return@mapNotNull null
+                if (rule.matches(tx.originalDesc, tx.amount) && (tx.category != rule.category || tx.subCategory != rule.subCategory)) {
+                    count++
+                    tx.copy(category = rule.category, subCategory = rule.subCategory, matchedRuleId = rule.id)
+                } else null
+            }
             if (updatedTxs.isNotEmpty()) {
-                transactionRepository.saveTransactionsBatch(updatedTxs)
+                transactionRepository.saveTransactions(updatedTxs)
             }
             _uiState.update { it.copy(ruleExecutionMessage = "Rule saved & applied to $count transactions!") }
             closeDialogs()
@@ -304,10 +324,18 @@ class BudgetsViewModel(
 
     fun runAllRules() {
         viewModelScope.launch {
-            val rules = _uiState.value.rules
-            val (updatedTxs, count) = ruleRepository.applyAllRules(rules, currentTransactions)
+            val rules = _uiState.value.rules.filter { it.isActive }.sortedBy { it.priority }
+            var count = 0
+            val updatedTxs = currentTransactions.mapNotNull { tx ->
+                if (tx.isSplit) return@mapNotNull null
+                val matched = rules.firstOrNull { it.matches(tx.originalDesc, tx.amount) }
+                if (matched != null && (tx.category != matched.category || tx.subCategory != matched.subCategory)) {
+                    count++
+                    tx.copy(category = matched.category, subCategory = matched.subCategory, matchedRuleId = matched.id)
+                } else null
+            }
             if (updatedTxs.isNotEmpty()) {
-                transactionRepository.saveTransactionsBatch(updatedTxs)
+                transactionRepository.saveTransactions(updatedTxs)
             }
             _uiState.update { it.copy(ruleExecutionMessage = "Auto-Rules applied to $count transactions!") }
         }

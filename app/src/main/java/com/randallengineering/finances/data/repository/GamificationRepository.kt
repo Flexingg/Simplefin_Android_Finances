@@ -154,4 +154,38 @@ class GamificationRepository(
         val ids = listOfNotNull(state.equippedHeadId, state.equippedChestId, state.equippedRelicId, state.equippedPetId)
         return ids.mapNotNull { DefaultEquipmentCatalog.getItemById(it) }
     }
+
+    private val _customQuestsFlow = MutableStateFlow<List<com.randallengineering.finances.domain.model.CustomQuestChallenge>>(loadCustomQuests())
+    val customQuestsFlow: kotlinx.coroutines.flow.StateFlow<List<com.randallengineering.finances.domain.model.CustomQuestChallenge>> = _customQuestsFlow.asStateFlow()
+
+    private fun loadCustomQuests(): List<com.randallengineering.finances.domain.model.CustomQuestChallenge> {
+        val raw = prefs.getString("custom_quests_list", null)
+        return if (!raw.isNullOrBlank()) {
+            try {
+                json.decodeFromString(raw)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    fun saveCustomQuest(quest: com.randallengineering.finances.domain.model.CustomQuestChallenge) {
+        val current = _customQuestsFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.id == quest.id }
+        if (index >= 0) {
+            current[index] = quest
+        } else {
+            current.add(quest)
+        }
+        _customQuestsFlow.value = current
+        prefs.edit().putString("custom_quests_list", json.encodeToString(current)).apply()
+    }
+
+    fun deleteCustomQuest(id: String) {
+        val current = _customQuestsFlow.value.filterNot { it.id == id }
+        _customQuestsFlow.value = current
+        prefs.edit().putString("custom_quests_list", json.encodeToString(current)).apply()
+    }
 }

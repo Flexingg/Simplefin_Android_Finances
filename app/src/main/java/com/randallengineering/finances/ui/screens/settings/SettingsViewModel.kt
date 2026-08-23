@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
@@ -21,6 +22,8 @@ data class SettingsUiState(
     val syncDaysBack: Int = 90,
     val isClaimingToken: Boolean = false,
     val isSyncing: Boolean = false,
+    val isBiometricEnabled: Boolean = false,
+    val isBiometricAvailable: Boolean = false,
     val successMessage: String? = null,
     val errorMessage: String? = null,
     val errList: List<String> = emptyList()
@@ -37,6 +40,22 @@ class SettingsViewModel(
 
     init {
         observeConfig()
+    }
+
+    fun initSecurityState(context: Context) {
+        val enabled = BiometricAuthManager.isBiometricEnabled(context)
+        val available = BiometricAuthManager.canAuthenticate(context)
+        _uiState.update { it.copy(isBiometricEnabled = enabled, isBiometricAvailable = available) }
+    }
+
+    fun setBiometricEnabled(context: Context, enabled: Boolean) {
+        BiometricAuthManager.setBiometricEnabled(context, enabled)
+        _uiState.update {
+            it.copy(
+                isBiometricEnabled = enabled,
+                successMessage = if (enabled) "Biometric Lock enabled!" else "Biometric Lock disabled."
+            )
+        }
     }
 
     private fun observeConfig() {

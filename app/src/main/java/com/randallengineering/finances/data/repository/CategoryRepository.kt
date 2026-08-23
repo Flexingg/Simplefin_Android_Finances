@@ -4,10 +4,15 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.domain.model.CategoryHierarchy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -17,11 +22,15 @@ class CategoryRepository(
 ) {
     private val prefs = context.getSharedPreferences("randall_categories", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
+    private val ioScope = CoroutineScope(Dispatchers.IO)
+
     private val _categoriesFlow = MutableStateFlow<List<CategoryHierarchy>>(emptyList())
     private val _incomeCategoryFlow = MutableStateFlow(prefs.getString("income_category_name", "Income") ?: "Income")
 
     init {
-        loadCategories()
+        ioScope.launch {
+            loadCategories()
+        }
     }
 
     fun getIncomeCategory(): String = _incomeCategoryFlow.value
@@ -31,10 +40,12 @@ class CategoryRepository(
     fun setIncomeCategory(name: String) {
         val clean = name.trim().ifBlank { "Income" }
         _incomeCategoryFlow.value = clean
-        prefs.edit().putString("income_category_name", clean).apply()
+        ioScope.launch {
+            prefs.edit().putString("income_category_name", clean).apply()
+        }
     }
 
-    private fun loadCategories() {
+    private suspend fun loadCategories() = withContext(Dispatchers.IO) {
         try {
             val raw = prefs.getString("custom_categories", null)
             if (!raw.isNullOrBlank()) {
@@ -48,7 +59,7 @@ class CategoryRepository(
         }
     }
 
-    private fun saveCategories(list: List<CategoryHierarchy>) {
+    private suspend fun saveCategories(list: List<CategoryHierarchy>) = withContext(Dispatchers.IO) {
         _categoriesFlow.value = list
         try {
             prefs.edit().putString("custom_categories", json.encodeToString(list)).apply()
@@ -58,99 +69,78 @@ class CategoryRepository(
     }
 
     fun getCategoriesFlow(): Flow<Resource<List<CategoryHierarchy>>> {
-        return _categoriesFlow.asStateFlow().map { Resource.Success(it) }
+        return _categoriesFlow.asStateFlow()
+            .map { Resource.Success(it) }
+            .flowOn(Dispatchers.Default)
     }
 
-    fun addOrUpdateCategory(mainCategory: String, subCategory: String? = null) {
-        val cleanMain = mainCategory.trim()
-        if (cleanMain.isBlank()) return
+    suspend fun addOrUpdateCategory(mainCategory: String, subCategory: String? = null) = withContext(Dispatchers.IO) {
+        val cleanMain = mainCategory.trim().replaceFirstChar { it.uppercase() }
+        if (cleanMain.isBlank()) return@withContext
 
         val current = _categoriesFlow.value.toMutableList()
         val index = current.indexOfFirst { it.mainCategory.equals(cleanMain, ignoreCase = true) }
 
         if (index >= 0) {
             val existing = current[index]
-            if (!subCategory.isNullOrBlank()) {
-                val cleanSub = subCategory.trim()
-                if (!existing.subCategories.any { it.equals(cleanSub, ignoreCase = true) }) {
-                    current[index] = existing.copy(subCategories = existing.subCategories + cleanSub)
-                }
+            val cleanSub = subCategory?.trim()?.replaceFirstChar { it.uppercase() }
+            val updatedSubs = if (!cleanSub.isNullOrBlank() && !existing.subCategories.any { it.equals(cleanSub, ignoreCase = true) }) {
+                (existing.subCategories + cleanSub).sorted()
+            } else {
+                existing.subCategories
             }
+            current[index] = existing.copy(subCategories = updatedSubs)
         } else {
-            val subs = if (!subCategory.isNullOrBlank()) listOf(subCategory.trim()) else emptyList()
+            val cleanSub = subCategory?.trim()?.replaceFirstChar { it.uppercase() }
+            val subs = if (!cleanSub.isNullOrBlank()) listOf(cleanSub) else emptyList()
             current.add(CategoryHierarchy(mainCategory = cleanMain, subCategories = subs))
         }
 
-        saveCategories(current)
+        saveCategories(current.sortedBy { it.mainCategory })
     }
 
-    fun renameMainCategory(oldMain: String, newMain: String) {
-        val cleanOld = oldMain.trim()
-        val cleanNew = newMain.trim()
-        if (cleanOld.isBlank() || cleanNew.isBlank()) return
+    suspend fun renameCategory(oldName: String, newName: String) = withContext(Dispatchers.IO) {
+        val cleanNew = newName.trim().replaceFirstChar { it.uppercase() }
+        if (cleanNew.isBlank() || oldName.equals(cleanNew, ignoreCase = true)) return@withContext
 
         val current = _categoriesFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.mainCategory.equals(cleanOld, ignoreCase = true) }
+        val index = current.indexOfFirst { it.mainCategory.equals(oldName, ignoreCase = true) }
         if (index >= 0) {
             val existing = current[index]
             current[index] = existing.copy(mainCategory = cleanNew)
-            saveCategories(current)
-
-            // If income category was this category, update it
-            if (_incomeCategoryFlow.value.equals(cleanOld, ignoreCase = true)) {
-                setIncomeCategory(cleanNew)
-            }
+            saveCategories(current.sortedBy { it.mainCategory })
         }
     }
 
-    fun addSubCategory(mainCategory: String, subCategory: String) {
-        val cleanMain = mainCategory.trim()
-        val cleanSub = subCategory.trim()
-        if (cleanMain.isBlank() || cleanSub.isBlank()) return
+    suspend fun renameSubcategory(mainCategory: String, oldSub: String, newSub: String) = withContext(Dispatchers.IO) {
+        val cleanNew = newSub.trim().replaceFirstChar { it.uppercase() }
+        if (cleanNew.isBlank() || oldSub.equals(cleanNew, ignoreCase = true)) return@withContext
 
         val current = _categoriesFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.mainCategory.equals(cleanMain, ignoreCase = true) }
+        val index = current.indexOfFirst { it.mainCategory.equals(mainCategory, ignoreCase = true) }
         if (index >= 0) {
             val existing = current[index]
-            if (!existing.subCategories.any { it.equals(cleanSub, ignoreCase = true) }) {
-                current[index] = existing.copy(subCategories = existing.subCategories + cleanSub)
-                saveCategories(current)
-            }
-        } else {
-            current.add(CategoryHierarchy(mainCategory = cleanMain, subCategories = listOf(cleanSub)))
-            saveCategories(current)
-        }
-    }
-
-    fun renameSubCategory(mainCategory: String, oldSub: String, newSub: String) {
-        val cleanMain = mainCategory.trim()
-        val cleanOld = oldSub.trim()
-        val cleanNew = newSub.trim()
-        if (cleanMain.isBlank() || cleanOld.isBlank() || cleanNew.isBlank()) return
-
-        val current = _categoriesFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.mainCategory.equals(cleanMain, ignoreCase = true) }
-        if (index >= 0) {
-            val existing = current[index]
-            val updatedSubs = existing.subCategories.map { if (it.equals(cleanOld, ignoreCase = true)) cleanNew else it }
+            val updatedSubs = existing.subCategories.map {
+                if (it.equals(oldSub, ignoreCase = true)) cleanNew else it
+            }.distinct().sorted()
             current[index] = existing.copy(subCategories = updatedSubs)
             saveCategories(current)
         }
     }
 
-    fun deleteSubCategory(mainCategory: String, subCategory: String) {
-        val current = _categoriesFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.mainCategory.equals(mainCategory.trim(), ignoreCase = true) }
-        if (index >= 0) {
-            val existing = current[index]
-            val updatedSubs = existing.subCategories.filterNot { it.equals(subCategory.trim(), ignoreCase = true) }
-            current[index] = existing.copy(subCategories = updatedSubs)
-            saveCategories(current)
-        }
-    }
-
-    fun deleteMainCategory(mainCategory: String) {
-        val current = _categoriesFlow.value.filterNot { it.mainCategory.equals(mainCategory.trim(), ignoreCase = true) }
+    suspend fun deleteCategory(mainCategory: String) = withContext(Dispatchers.IO) {
+        val current = _categoriesFlow.value.filterNot { it.mainCategory.equals(mainCategory, ignoreCase = true) }
         saveCategories(current)
+    }
+
+    suspend fun deleteSubcategory(mainCategory: String, subCategory: String) = withContext(Dispatchers.IO) {
+        val current = _categoriesFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.mainCategory.equals(mainCategory, ignoreCase = true) }
+        if (index >= 0) {
+            val existing = current[index]
+            val updatedSubs = existing.subCategories.filterNot { it.equals(subCategory, ignoreCase = true) }
+            current[index] = existing.copy(subCategories = updatedSubs)
+            saveCategories(current)
+        }
     }
 }

@@ -206,7 +206,7 @@ class SimpleFinRepository(
             }
 
             if (allTransactionsMap.isNotEmpty()) {
-                transactionRepository.batchInsertOrUpdate(allTransactionsMap.values.toList())
+                transactionRepository.saveTransactions(allTransactionsMap.values.toList())
             }
 
             prefs.edit()

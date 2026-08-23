@@ -88,6 +88,20 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // Biometrics & Security
+    implementation(libs.androidx.biometric)
+
+    // Background WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // ML Kit OCR Receipt Text Recognition
+    implementation(libs.mlkit.text.recognition)
+
+    // Jetpack Glance Home Widgets
+    implementation(libs.androidx.glance)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     // Unit Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

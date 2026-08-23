@@ -14,6 +14,7 @@ import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Budget
 import com.randallengineering.finances.domain.model.CategoryHierarchy
+import com.randallengineering.finances.domain.model.CustomQuestChallenge
 import com.randallengineering.finances.domain.model.GamificationState
 import com.randallengineering.finances.domain.model.Goal
 import com.randallengineering.finances.domain.model.QuestNode
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -36,9 +38,11 @@ import kotlin.math.max
 data class QuestPathUiState(
     val gamificationState: GamificationState = GamificationState(),
     val nodes: List<QuestNode> = emptyList(),
+    val categories: List<CategoryHierarchy> = emptyList(),
     val activeNode: QuestNode? = null,
     val selectedNode: QuestNode? = null,
-    val selectedChapter: Int = 1
+    val selectedChapter: Int = 1,
+    val isCreatingCustomQuest: Boolean = false
 )
 
 @Suppress("UNCHECKED_CAST")
@@ -54,6 +58,7 @@ class QuestPathViewModel(
 
     private val _selectedNode = MutableStateFlow<QuestNode?>(null)
     private val _selectedChapter = MutableStateFlow(1)
+    private val _isCreatingCustomQuest = MutableStateFlow(false)
 
     val uiState: StateFlow<QuestPathUiState> = combine(
         listOf(
@@ -64,8 +69,10 @@ class QuestPathViewModel(
             categoryRepository.getCategoriesFlow(),
             simpleFinRepository.getConfigFlow(),
             ruleRepository.getRulesFlow(),
+            gamificationRepository.customQuestsFlow,
             _selectedNode,
-            _selectedChapter
+            _selectedChapter,
+            _isCreatingCustomQuest
         )
     ) { array ->
         val gState = array[0] as GamificationState
@@ -75,8 +82,10 @@ class QuestPathViewModel(
         val catsRes = array[4] as? Resource<List<CategoryHierarchy>>
         val simpleFinRes = array[5] as? Resource<SimpleFinConfigEntity?>
         val rulesRes = array[6] as? Resource<List<Rule>>
-        val selected = array[7] as? QuestNode
-        val currentChap = (array[8] as? Int) ?: 1
+        val customQuests = (array[7] as? List<CustomQuestChallenge>).orEmpty()
+        val selected = array[8] as? QuestNode
+        val currentChap = (array[9] as? Int) ?: 1
+        val isCreating = (array[10] as? Boolean) ?: false
 
         val budgets = (budgetsRes as? Resource.Success<List<Budget>>)?.data.orEmpty()
         val goals = (goalsRes as? Resource.Success<List<Goal>>)?.data.orEmpty()
@@ -85,7 +94,7 @@ class QuestPathViewModel(
         val simpleFinConfig = (simpleFinRes as? Resource.Success<SimpleFinConfigEntity?>)?.data
         val rules = (rulesRes as? Resource.Success<List<Rule>>)?.data.orEmpty()
 
-        val evaluatedNodes = evaluateAllQuests(gState, budgets, goals, txs, cats, simpleFinConfig, rules)
+        val evaluatedNodes = evaluateAllQuests(gState, budgets, goals, txs, cats, simpleFinConfig, rules, customQuests)
         val active = evaluatedNodes.firstOrNull { !it.isCompleted && it.isUnlocked } ?: evaluatedNodes.lastOrNull()
 
         // Auto-select active chapter if needed
@@ -94,9 +103,11 @@ class QuestPathViewModel(
         QuestPathUiState(
             gamificationState = gState,
             nodes = evaluatedNodes,
+            categories = cats,
             activeNode = active,
             selectedNode = selected,
-            selectedChapter = chapToDisplay
+            selectedChapter = chapToDisplay,
+            isCreatingCustomQuest = isCreating
         )
     }.stateIn(
         scope = viewModelScope,
@@ -124,6 +135,23 @@ class QuestPathViewModel(
         _selectedChapter.value = chapter
     }
 
+    fun openCreateCustomQuestDialog() {
+        _isCreatingCustomQuest.value = true
+    }
+
+    fun closeCreateCustomQuestDialog() {
+        _isCreatingCustomQuest.value = false
+    }
+
+    fun saveCustomQuest(quest: CustomQuestChallenge) {
+        gamificationRepository.saveCustomQuest(quest)
+        _isCreatingCustomQuest.value = false
+    }
+
+    fun deleteCustomQuest(id: String) {
+        gamificationRepository.deleteCustomQuest(id)
+    }
+
     fun claimNodeReward(node: QuestNode) {
         viewModelScope.launch {
             gamificationRepository.completeQuestNode(node.id, node.rewardXp, node.rewardGems)
@@ -138,7 +166,8 @@ class QuestPathViewModel(
         txs: List<Transaction>,
         categories: List<CategoryHierarchy>,
         simpleFinConfig: SimpleFinConfigEntity?,
-        rules: List<Rule>
+        rules: List<Rule>,
+        customQuests: List<CustomQuestChallenge>
     ): List<QuestNode> {
         val completedIds = gState.completedNodeIds.toSet()
         val nodes = mutableListOf<QuestNode>()
@@ -522,6 +551,44 @@ class QuestPathViewModel(
             isCompleted = completedIds.contains("node_c3_boss")
         )
         nodes.add(c3_5)
+
+        // ==========================================
+        // CHAPTER 4: CUSTOM QUESTS & BOSS ARENA
+        // ==========================================
+        customQuests.forEachIndexed { idx, custom ->
+            val catSpend = currentMonthTxs.filter { it.category.contains(custom.category, ignoreCase = true) }.sumOf { abs(it.amount) }
+            val isMet = catSpend <= custom.targetAmount && catSpend > 0
+            val isCompleted = completedIds.contains(custom.id)
+            val currentHp = max(0.0, custom.targetAmount - catSpend)
+
+            val customNode = QuestNode(
+                id = custom.id,
+                title = custom.title,
+                subtitle = custom.subtitle,
+                chapter = 4,
+                chapterTitle = "Chapter 4: Custom Quests & Boss Arena",
+                weekNumber = idx + 1,
+                nodeType = if (custom.isBossBattle) QuestNodeType.BOSS_BATTLE else QuestNodeType.CUSTOM_CHALLENGE,
+                targetAmount = custom.targetAmount,
+                currentAmount = catSpend,
+                progressText = if (custom.isBossBattle) {
+                    if (isMet) "⚔️ Boss Defeated! (\$${catSpend.toInt()}/\$${custom.targetAmount.toInt()})" else "Boss HP: \$${currentHp.toInt()} / \$${custom.targetAmount.toInt()}"
+                } else {
+                    "${CurrencyFormatter.format(catSpend)} / ${CurrencyFormatter.format(custom.targetAmount)}"
+                },
+                progressPercent = ((custom.targetAmount - catSpend).toFloat() / custom.targetAmount.toFloat()).coerceIn(0f, 1f),
+                isCriteriaMet = isMet,
+                requirementDescription = "Keep monthly spending in ${custom.category} under ${CurrencyFormatter.format(custom.targetAmount)}.",
+                rewardXp = custom.rewardXp,
+                rewardGems = custom.rewardGems,
+                bossName = custom.bossName,
+                bossMaxHp = custom.targetAmount,
+                bossCurrentHp = currentHp,
+                isUnlocked = true,
+                isCompleted = isCompleted
+            )
+            nodes.add(customNode)
+        }
 
         return nodes
     }

@@ -15,7 +15,9 @@ data class BudgetEntity(
     var targetAmount: Double = 0.0,
     var incomePercentage: Double? = null,
     var spentAmount: Double = 0.0,
-    var pacingPercent: Double = 0.0
+    var pacingPercent: Double = 0.0,
+    var rolloverEnabled: Boolean = false,
+    var rolloverResetMonths: List<String> = emptyList()
 ) {
     fun toDomain(): Budget = Budget(
         id = id,
@@ -29,7 +31,9 @@ data class BudgetEntity(
         targetAmount = targetAmount,
         incomePercentage = incomePercentage,
         spentAmount = spentAmount,
-        pacingPercent = pacingPercent
+        pacingPercent = pacingPercent,
+        rolloverEnabled = rolloverEnabled,
+        rolloverResetMonths = rolloverResetMonths
     )
 
     companion object {
@@ -41,7 +45,9 @@ data class BudgetEntity(
             targetAmount = domain.targetAmount,
             incomePercentage = domain.incomePercentage,
             spentAmount = domain.spentAmount,
-            pacingPercent = domain.pacingPercent
+            pacingPercent = domain.pacingPercent,
+            rolloverEnabled = domain.rolloverEnabled,
+            rolloverResetMonths = domain.rolloverResetMonths
         )
     }
 }

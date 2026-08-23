@@ -45,6 +45,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.randallengineering.finances.core.theme.Shapes
@@ -82,6 +84,7 @@ fun ActionQueueScreen(
     viewModel: ActionQueueViewModel = koinViewModel(),
     onNavigateBack: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val currentTx = uiState.currentTransaction
 
@@ -239,6 +242,12 @@ fun ActionQueueScreen(
                             modifier = Modifier.size(16.dp).clickable { viewModel.clearRuleMessage() }
                         )
                     }
+                }
+            }
+
+            LaunchedEffect(uiState.isSessionComplete) {
+                if (uiState.isSessionComplete) {
+                    com.randallengineering.finances.core.audio.DuolingoSoundEffects.playLevelUpFanfare(context)
                 }
             }
 
@@ -811,7 +820,10 @@ fun ActionQueueScreen(
                 val bonusNoteText = if (hasNote) " (+10 XP Note Bonus!)" else ""
 
                 DuolingoPressableButton(
-                    onClick = { viewModel.confirmCategory(currentTx, txNote) },
+                    onClick = {
+                        com.randallengineering.finances.core.audio.DuolingoSoundEffects.playComboChime(uiState.comboMultiplier, context)
+                        viewModel.confirmCategory(currentTx, txNote)
+                    },
                     enabled = !isUncategorized,
                     backgroundColor = DuoGreen,
                     shadowColor = DuoGreenDark,

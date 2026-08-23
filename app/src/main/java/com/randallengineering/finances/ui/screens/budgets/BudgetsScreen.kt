@@ -115,7 +115,8 @@ fun BudgetsScreen(
             categories = uiState.categories,
             totalMtdIncome = totalMtdIncome,
             onDismiss = { viewModel.closeDialogs() },
-            onSave = { viewModel.saveBudget(it) }
+            onSave = { viewModel.saveBudget(it) },
+            onResetRollover = { viewModel.resetMonthRollover(it) }
         )
     }
 
@@ -493,6 +494,14 @@ private fun SubcategoryBudgetsTabContent(
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = if (subBudget.isOverBudget) DuoRed else Color.White.copy(alpha = 0.7f)
                                             )
+                                            if (subBudget.rolloverEnabled) {
+                                                Text(
+                                                    text = "🔄 Rollover: +${CurrencyFormatter.format(subBudget.rolloverAmount)} from last mo (Limit: ${CurrencyFormatter.format(subBudget.effectiveTargetAmount)})",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = DuoGold
+                                                )
+                                            }
                                         }
 
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1183,7 +1192,8 @@ fun DuolingoSubcategoryBudgetDialog(
     categories: List<CategoryHierarchy>,
     totalMtdIncome: Double,
     onDismiss: () -> Unit,
-    onSave: (Budget) -> Unit
+    onSave: (Budget) -> Unit,
+    onResetRollover: (Budget) -> Unit = {}
 ) {
     var selectedMain by remember { mutableStateOf(initialBudget?.category ?: categories.firstOrNull()?.mainCategory.orEmpty()) }
     val activeCat = categories.find { it.mainCategory.equals(selectedMain, ignoreCase = true) }
@@ -1192,6 +1202,7 @@ fun DuolingoSubcategoryBudgetDialog(
     var budgetType by remember { mutableStateOf(initialBudget?.categoryType ?: BudgetCategoryType.FIXED) }
     var fixedAmountText by remember { mutableStateOf(if (initialBudget?.categoryType == BudgetCategoryType.FIXED) initialBudget.targetAmount.toString() else "150.00") }
     var percentIncomeText by remember { mutableStateOf(initialBudget?.incomePercentage?.toString() ?: "10.0") }
+    var rolloverEnabled by remember(initialBudget) { mutableStateOf(initialBudget?.rolloverEnabled ?: false) }
 
     val calculatedTargetFromPercent = (percentIncomeText.toDoubleOrNull() ?: 0.0) / 100.0 * totalMtdIncome
 
@@ -1314,6 +1325,41 @@ fun DuolingoSubcategoryBudgetDialog(
                         )
                     }
                 }
+
+                HorizontalDivider()
+
+                // 4. Envelope / Rollover Budgeting Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("🔄 Envelope / Rollover", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "Roll unspent balance from last month into this month's limit",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = rolloverEnabled,
+                        onCheckedChange = { rolloverEnabled = it }
+                    )
+                }
+
+                if (rolloverEnabled && initialBudget != null) {
+                    DuolingoPressableButton(
+                        onClick = { onResetRollover(initialBudget) },
+                        backgroundColor = DuoGoldDark,
+                        shadowColor = DuoCardShadow,
+                        cornerRadius = 8.dp,
+                        shadowHeight = 2.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Reset This Month's Rollover to $0.00", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -1339,7 +1385,8 @@ fun DuolingoSubcategoryBudgetDialog(
                             subCategory = selectedSub,
                             categoryType = budgetType,
                             targetAmount = target,
-                            incomePercentage = percent
+                            incomePercentage = percent,
+                            rolloverEnabled = rolloverEnabled
                         )
                         onSave(budget)
                     }

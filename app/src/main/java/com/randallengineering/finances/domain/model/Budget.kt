@@ -15,19 +15,25 @@ data class Budget(
     val category: String,                   // Main Category (e.g. Housing, Dining)
     val subCategory: String = "",           // Subcategory (e.g. Mortgage, Fast Food)
     val categoryType: BudgetCategoryType = BudgetCategoryType.FIXED,
-    val targetAmount: Double = 0.0,         // Target $ limit per month
+    val targetAmount: Double = 0.0,         // Base Target $ limit per month
     val incomePercentage: Double? = null,   // e.g. 15.0 for 15% of monthly income
     val spentAmount: Double = 0.0,
-    val pacingPercent: Double = 0.0
+    val pacingPercent: Double = 0.0,
+    val rolloverEnabled: Boolean = false,   // Envelope / Rollover toggle
+    val rolloverResetMonths: List<String> = emptyList(), // "YYYY-MM" months where rollover was reset to $0
+    val rolloverAmount: Double = 0.0        // Unspent amount carried over from prior month
 ) {
     val displayName: String
         get() = if (subCategory.isNotBlank()) "$category > $subCategory" else category
 
+    val effectiveTargetAmount: Double
+        get() = if (rolloverEnabled) (targetAmount + rolloverAmount).coerceAtLeast(0.0) else targetAmount
+
     val remainingAmount: Double
-        get() = (targetAmount - spentAmount).coerceAtLeast(0.0)
+        get() = (effectiveTargetAmount - spentAmount).coerceAtLeast(0.0)
 
     val isOverBudget: Boolean
-        get() = spentAmount > targetAmount && targetAmount > 0
+        get() = spentAmount > effectiveTargetAmount && effectiveTargetAmount > 0
 
     val isAnomalyOverpacing: Boolean
         get() = pacingPercent >= 120.0
@@ -48,5 +54,7 @@ data class MainCategoryBudgetGroup(
     val healthPercent: Float
         get() = if (totalTargetAmount > 0) {
             ((totalTargetAmount - totalSpentAmount) / totalTargetAmount).toFloat().coerceIn(0f, 1f)
-        } else 1f
+        } else {
+            1f
+        }
 }

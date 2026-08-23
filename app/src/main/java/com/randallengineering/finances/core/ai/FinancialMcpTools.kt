@@ -260,7 +260,7 @@ class FinancialMcpTools(
                     count++
                 }
             }
-            transactionRepository.batchInsertOrUpdate(allTxs)
+            transactionRepository.saveTransactions(allTxs)
         }
 
         return ToolExecutionResult(

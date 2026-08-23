@@ -56,8 +56,22 @@ enum class QuestNodeType {
     AUTO_RULES,
     INBOX_ZERO,
     SPLIT_TRANSACTION,
-    NOTE_BONUS
+    NOTE_BONUS,
+    CUSTOM_CHALLENGE
 }
+
+@Serializable
+data class CustomQuestChallenge(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val category: String,
+    val targetAmount: Double = 150.0,
+    val rewardXp: Int = 200,
+    val rewardGems: Int = 50,
+    val isBossBattle: Boolean = false,
+    val bossName: String = "The Spend Dragon 🐉"
+)
 
 @Serializable
 data class QuestNode(

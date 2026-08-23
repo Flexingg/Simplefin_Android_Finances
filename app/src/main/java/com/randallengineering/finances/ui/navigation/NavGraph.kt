@@ -145,7 +145,9 @@ fun FinanceNavHost(
             composable(Screen.QuestPath.route) {
                 QuestPathScreen(
                     onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) },
-                    onNavigateToRoute = { route -> navController.navigate(route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
+                    onNavigateToGoals = { navController.navigate(Screen.Goals.route) }
                 )
             }
             composable(Screen.ActionQueue.route) {
