@@ -61,9 +61,9 @@ data class BottomNavItem(
 val BottomNavItems = listOf(
     BottomNavItem(Screen.QuestPath.route, "Quests", Icons.Default.Map),
     BottomNavItem(Screen.ActionQueue.route, "Queue", Icons.Default.Style),
+    BottomNavItem(Screen.Budgets.route, "Budgets", Icons.Default.PieChart),
     BottomNavItem(Screen.GearLoadout.route, "Gear", Icons.Default.Shield),
-    BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong),
-    BottomNavItem(Screen.Insights.route, "Insights", Icons.Default.BarChart)
+    BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +78,7 @@ fun FinanceNavHost(
 
     Scaffold(
         topBar = {
-            if (shouldShowBottomBar && currentRoute != Screen.QuestPath.route && currentRoute != Screen.ActionQueue.route && currentRoute != Screen.GearLoadout.route) {
+            if (shouldShowBottomBar && currentRoute != Screen.QuestPath.route && currentRoute != Screen.ActionQueue.route && currentRoute != Screen.GearLoadout.route && currentRoute != Screen.Budgets.route) {
                 TopAppBar(
                     title = {
                         val currentTitle = when (currentRoute) {
@@ -144,7 +144,8 @@ fun FinanceNavHost(
         ) {
             composable(Screen.QuestPath.route) {
                 QuestPathScreen(
-                    onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) }
+                    onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) },
+                    onNavigateToRoute = { route -> navController.navigate(route) }
                 )
             }
             composable(Screen.ActionQueue.route) {

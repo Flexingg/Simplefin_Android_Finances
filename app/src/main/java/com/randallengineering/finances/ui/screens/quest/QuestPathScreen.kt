@@ -72,7 +72,8 @@ import kotlin.math.sin
 @Composable
 fun QuestPathScreen(
     viewModel: QuestPathViewModel = koinViewModel(),
-    onNavigateToQueue: () -> Unit = {}
+    onNavigateToQueue: () -> Unit = {},
+    onNavigateToRoute: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -193,13 +194,35 @@ fun QuestPathScreen(
                         Text("Claim +${node.rewardXp} XP! 🎉", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else if (node.isUnlocked) {
+                    val destinationRoute = when (node.nodeType) {
+                        QuestNodeType.SETUP_SIMPLEFIN -> com.randallengineering.finances.ui.navigation.Screen.Settings.route
+                        QuestNodeType.SETUP_CATEGORIES, QuestNodeType.SETUP_SUBCATEGORIES, QuestNodeType.SETUP_BUDGETS -> com.randallengineering.finances.ui.navigation.Screen.Budgets.route
+                        QuestNodeType.SETUP_GOALS, QuestNodeType.SAVINGS_CHEST -> com.randallengineering.finances.ui.navigation.Screen.Goals.route
+                        QuestNodeType.INBOX_ZERO, QuestNodeType.NOTE_BONUS, QuestNodeType.SPLIT_TRANSACTION -> com.randallengineering.finances.ui.navigation.Screen.ActionQueue.route
+                        QuestNodeType.AMAZON_MATCH -> com.randallengineering.finances.ui.navigation.Screen.Transactions.route
+                        else -> com.randallengineering.finances.ui.navigation.Screen.Budgets.route
+                    }
+
+                    val buttonLabel = when (node.nodeType) {
+                        QuestNodeType.SETUP_SIMPLEFIN -> "🚀 Go to Settings ➔"
+                        QuestNodeType.SETUP_CATEGORIES, QuestNodeType.SETUP_SUBCATEGORIES -> "🚀 Go to Categories ➔"
+                        QuestNodeType.SETUP_BUDGETS -> "🚀 Go to Budgets ➔"
+                        QuestNodeType.SETUP_GOALS, QuestNodeType.SAVINGS_CHEST -> "🚀 Go to Goals ➔"
+                        QuestNodeType.INBOX_ZERO, QuestNodeType.NOTE_BONUS, QuestNodeType.SPLIT_TRANSACTION -> "🚀 Go to Queue ➔"
+                        QuestNodeType.AMAZON_MATCH -> "🚀 Go to Scan ➔"
+                        else -> "🚀 Jump to Quest ➔"
+                    }
+
                     DuolingoPressableButton(
-                        onClick = { viewModel.dismissNodeDialog() },
-                        backgroundColor = DuoGold,
-                        shadowColor = DuoGoldDark,
+                        onClick = {
+                            viewModel.dismissNodeDialog()
+                            onNavigateToRoute(destinationRoute)
+                        },
+                        backgroundColor = DuoGreen,
+                        shadowColor = DuoGreenDark,
                         cornerRadius = 10.dp
                     ) {
-                        Text("In Progress ⏳", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(buttonLabel, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     DuolingoPressableButton(
@@ -209,6 +232,18 @@ fun QuestPathScreen(
                         cornerRadius = 10.dp
                     ) {
                         Text("Locked 🔒", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                if (node.isUnlocked && !node.isCriteriaMet && !node.isCompleted) {
+                    DuolingoPressableButton(
+                        onClick = { viewModel.dismissNodeDialog() },
+                        backgroundColor = DuoCardDark,
+                        shadowColor = DuoCardShadow,
+                        cornerRadius = 10.dp
+                    ) {
+                        Text("Close", color = Color.White)
                     }
                 }
             }
