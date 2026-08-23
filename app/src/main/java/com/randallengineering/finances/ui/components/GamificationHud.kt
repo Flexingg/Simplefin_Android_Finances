@@ -51,13 +51,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.randallengineering.finances.core.theme.Shapes
+import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
 import com.randallengineering.finances.data.repository.GamificationRepository
 import org.koin.compose.koinInject
 
 @Composable
 fun GamificationHud(
     modifier: Modifier = Modifier,
-    onQueueClick: (() -> Unit)? = null
+    onQueueClick: (() -> Unit)? = null,
+    onGearClick: (() -> Unit)? = null,
+    onSettingsClick: (() -> Unit)? = null,
+    onAiClick: (() -> Unit)? = null
 ) {
     val repository: GamificationRepository = koinInject()
     val state by repository.stateFlow.collectAsState()
@@ -189,20 +196,44 @@ fun GamificationHud(
                     modifier = Modifier
                         .clip(Shapes.small)
                         .background(DuoBlue.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         Icons.Default.Bolt,
                         contentDescription = "XP",
                         tint = DuoBlue,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(3.dp))
                     Text(
                         text = "${state.xp} XP",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         color = DuoBlueDark
+                    )
+                }
+
+                // Gems / Gear Shop Badge (Clickable to open Gear/Shop)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(Shapes.small)
+                        .clickable { onGearClick?.invoke() }
+                        .background(DuoGold.copy(alpha = 0.15f))
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Diamond,
+                        contentDescription = "Gems & Gear",
+                        tint = DuoGoldDark,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        text = "${state.gems}",
+                        fontWeight = FontWeight.Black,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DuoGoldDark
                     )
                 }
 
@@ -213,28 +244,40 @@ fun GamificationHud(
                         .clip(Shapes.small)
                         .clickable { showHeartsDialog = true }
                         .background(DuoRed.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         Icons.Default.Favorite,
                         contentDescription = "Hearts",
                         tint = DuoRed,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(3.dp))
                     Text(
                         text = "${state.hearts}",
                         fontWeight = FontWeight.Black,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         color = DuoRedDark
                     )
-                    Spacer(Modifier.width(2.dp))
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Add Hearts",
-                        tint = DuoRedDark,
-                        modifier = Modifier.size(14.dp)
-                    )
+                }
+
+                // Settings Button
+                if (onSettingsClick != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(Shapes.small)
+                            .clickable { onSettingsClick() }
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 

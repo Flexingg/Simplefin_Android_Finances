@@ -62,7 +62,7 @@ val BottomNavItems = listOf(
     BottomNavItem(Screen.QuestPath.route, "Quests", Icons.Default.Map),
     BottomNavItem(Screen.ActionQueue.route, "Queue", Icons.Default.Style),
     BottomNavItem(Screen.Budgets.route, "Budgets", Icons.Default.PieChart),
-    BottomNavItem(Screen.GearLoadout.route, "Gear", Icons.Default.Shield),
+    BottomNavItem(Screen.Insights.route, "Insights", Icons.Default.BarChart),
     BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong)
 )
 
@@ -147,7 +147,9 @@ fun FinanceNavHost(
                     onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
-                    onNavigateToGoals = { navController.navigate(Screen.Goals.route) }
+                    onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
+                    onNavigateToGear = { navController.navigate(Screen.GearLoadout.route) },
+                    onNavigateToAi = { navController.navigate(Screen.AiAdvisor.route) }
                 )
             }
             composable(Screen.ActionQueue.route) {

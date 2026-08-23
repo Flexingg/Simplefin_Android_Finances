@@ -78,7 +78,9 @@ fun QuestPathScreen(
     onNavigateToQueue: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToBudgets: () -> Unit = {},
-    onNavigateToGoals: () -> Unit = {}
+    onNavigateToGoals: () -> Unit = {},
+    onNavigateToGear: () -> Unit = {},
+    onNavigateToAi: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -308,7 +310,12 @@ fun QuestPathScreen(
 
     Scaffold(
         topBar = {
-            GamificationHud(onQueueClick = onNavigateToQueue)
+            GamificationHud(
+                onQueueClick = onNavigateToQueue,
+                onGearClick = onNavigateToGear,
+                onSettingsClick = onNavigateToSettings,
+                onAiClick = onNavigateToAi
+            )
         }
     ) { innerPadding ->
         LazyColumn(
