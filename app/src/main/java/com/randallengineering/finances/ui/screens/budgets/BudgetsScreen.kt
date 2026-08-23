@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -31,7 +32,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -43,8 +44,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -91,14 +92,15 @@ fun BudgetsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val calc = uiState.calculationResult
     val mainCategoryGroups = calc?.mainCategoryGroups ?: emptyList()
+    val totalMtdIncome = calc?.totalMtdIncome ?: 0.0
     val hasIncomeCategory = uiState.categories.any { it.mainCategory.equals(uiState.incomeCategory, ignoreCase = true) }
 
-    // 1. Create / Edit Budget Dialog (Subcategory focused)
+    // 1. Create / Edit Budget Dialog
     if (uiState.isCreatingBudget || uiState.editingBudget != null) {
         DuolingoSubcategoryBudgetDialog(
             initialBudget = uiState.editingBudget,
             categories = uiState.categories,
-            totalMtdIncome = calc?.totalMtdIncome ?: 0.0,
+            totalMtdIncome = totalMtdIncome,
             onDismiss = { viewModel.closeDialogs() },
             onSave = { viewModel.saveBudget(it) }
         )
@@ -118,7 +120,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 3. Create Category Dialog
+    // 3. Create Main Category Dialog
     if (uiState.isCreatingCategory) {
         DuolingoCategoryDialog(
             onDismiss = { viewModel.closeDialogs() },
@@ -126,12 +128,45 @@ fun BudgetsScreen(
         )
     }
 
-    // 4. Add Subcategory Dialog
+    // 4. Edit Main Category Dialog
+    if (uiState.editingMainCategory != null) {
+        DuolingoRenameCategoryDialog(
+            currentName = uiState.editingMainCategory!!,
+            title = "✏️ Rename Main Category",
+            onDismiss = { viewModel.closeDialogs() },
+            onSave = { newName -> viewModel.renameMainCategory(uiState.editingMainCategory!!, newName) }
+        )
+    }
+
+    // 5. Edit Subcategory Dialog
+    if (uiState.editingSubCategory != null) {
+        val (mainCat, oldSub) = uiState.editingSubCategory!!
+        DuolingoRenameCategoryDialog(
+            currentName = oldSub,
+            title = "✏️ Rename Subcategory in \"$mainCat\"",
+            onDismiss = { viewModel.closeDialogs() },
+            onSave = { newSub -> viewModel.renameSubCategory(mainCat, oldSub, newSub) }
+        )
+    }
+
+    // 6. Add Subcategory Dialog
     if (uiState.selectedMainCategoryForSub != null) {
         DuolingoSubCategoryDialog(
             mainCategory = uiState.selectedMainCategoryForSub!!,
             onDismiss = { viewModel.closeDialogs() },
             onSave = { sub -> viewModel.addSubCategory(uiState.selectedMainCategoryForSub!!, sub) }
+        )
+    }
+
+    // 7. Create / Edit Rule Dialog
+    if (uiState.isCreatingRule || uiState.editingRule != null) {
+        DuolingoRuleDialog(
+            initialRule = uiState.editingRule,
+            categories = uiState.categories,
+            nextPriority = uiState.rules.size + 1,
+            onCalculateMatches = { pattern, min, max -> viewModel.calculateMatchesForPattern(pattern, min, max) },
+            onDismiss = { viewModel.closeDialogs() },
+            onSave = { viewModel.saveRule(it) }
         )
     }
 
@@ -141,101 +176,135 @@ fun BudgetsScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-            // Income Category Status Bar
-            Card(
+        // Income Category Status Bar
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(Shapes.large)
+                .clickable { viewModel.openChangeIncomeCategoryDialog() },
+            shape = Shapes.large,
+            colors = CardDefaults.cardColors(containerColor = if (hasIncomeCategory) DuoGreen.copy(alpha = 0.15f) else DuoGold.copy(alpha = 0.18f))
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(Shapes.large)
-                    .clickable { viewModel.openChangeIncomeCategoryDialog() },
-                shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = if (hasIncomeCategory) DuoGreen.copy(alpha = 0.15f) else DuoGold.copy(alpha = 0.18f))
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Text("💰", style = MaterialTheme.typography.titleLarge)
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text("Income Category: ${uiState.incomeCategory}", fontWeight = FontWeight.Bold, color = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                text = if (hasIncomeCategory) "MTD Income: ${CurrencyFormatter.format(calc?.totalMtdIncome ?: 0.0)}" else "⚠️ Tap to set up your Income category",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    DuolingoPressableButton(
-                        onClick = { viewModel.openChangeIncomeCategoryDialog() },
-                        backgroundColor = if (hasIncomeCategory) DuoGreen else DuoGold,
-                        shadowColor = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark,
-                        cornerRadius = 8.dp,
-                        shadowHeight = 2.dp
-                    ) {
-                        Text(if (hasIncomeCategory) "Change" else "Set Up", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Text("💰", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text("Income Category: ${uiState.incomeCategory}", fontWeight = FontWeight.Bold, color = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark, style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            text = if (hasIncomeCategory) "MTD Income: ${CurrencyFormatter.format(totalMtdIncome)}" else "⚠️ Tap to set up your Income category",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-            }
 
-            // Duolingo 3-Tab Bar
-            TabRow(
-                selectedTabIndex = uiState.selectedTab,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(Shapes.medium),
-                containerColor = DuoCardDark,
-                contentColor = Color.White
-            ) {
-                Tab(
-                    selected = uiState.selectedTab == 0,
-                    onClick = { viewModel.onTabSelect(0) },
-                    text = { Text("📊 Budgets (${mainCategoryGroups.size})", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == 1,
-                    onClick = { viewModel.onTabSelect(1) },
-                    text = { Text("🗂️ Categories (${uiState.categories.size})", fontWeight = if (uiState.selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
-                )
-                Tab(
-                    selected = uiState.selectedTab == 2,
-                    onClick = { viewModel.onTabSelect(2) },
-                    text = { Text("⚡ Rules (${uiState.rules.size})", fontWeight = if (uiState.selectedTab == 2) FontWeight.Bold else FontWeight.Normal) }
-                )
-            }
-
-            // Tab Contents
-            when (uiState.selectedTab) {
-                0 -> SubcategoryBudgetsTabContent(
-                    mainCategoryGroups = mainCategoryGroups,
-                    totalBudgetsCount = calc?.calculatedBudgets?.size ?: 0,
-                    onAddBudget = { viewModel.openCreateBudgetDialog() },
-                    onEditBudget = { viewModel.openEditBudgetDialog(it) },
-                    onDeleteBudget = { viewModel.deleteBudget(it) }
-                )
-                1 -> CategoriesTabContent(
-                    categories = uiState.categories,
-                    onAddCategory = { viewModel.openCreateCategoryDialog() },
-                    onAddSubCategory = { viewModel.openAddSubCategoryDialog(it) },
-                    onDeleteSubCategory = { main, sub -> viewModel.deleteSubCategory(main, sub) }
-                )
-                2 -> RulesTabContent(
-                    rules = uiState.rules,
-                    onAddRule = { viewModel.openCreateRuleDialog() },
-                    onDeleteRule = { viewModel.deleteRule(it) }
-                )
+                DuolingoPressableButton(
+                    onClick = { viewModel.openChangeIncomeCategoryDialog() },
+                    backgroundColor = if (hasIncomeCategory) DuoGreen else DuoGold,
+                    shadowColor = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark,
+                    cornerRadius = 8.dp,
+                    shadowHeight = 2.dp
+                ) {
+                    Text(if (hasIncomeCategory) "Change" else "Set Up", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
+
+        // Rule Execution Banner (if any)
+        if (uiState.ruleExecutionMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = DuoBlue.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("⚡ ${uiState.ruleExecutionMessage}", color = DuoBlueDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Dismiss",
+                        tint = DuoBlueDark,
+                        modifier = Modifier.size(16.dp).clickable { viewModel.closeDialogs() }
+                    )
+                }
+            }
+        }
+
+        // Duolingo 3-Tab Bar
+        TabRow(
+            selectedTabIndex = uiState.selectedTab,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(Shapes.medium),
+            containerColor = DuoCardDark,
+            contentColor = Color.White
+        ) {
+            Tab(
+                selected = uiState.selectedTab == 0,
+                onClick = { viewModel.onTabSelect(0) },
+                text = { Text("📊 Budgets (${mainCategoryGroups.size})", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
+            )
+            Tab(
+                selected = uiState.selectedTab == 1,
+                onClick = { viewModel.onTabSelect(1) },
+                text = { Text("🗂️ Categories (${uiState.categories.size})", fontWeight = if (uiState.selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
+            )
+            Tab(
+                selected = uiState.selectedTab == 2,
+                onClick = { viewModel.onTabSelect(2) },
+                text = { Text("⚡ Rules (${uiState.rules.size})", fontWeight = if (uiState.selectedTab == 2) FontWeight.Bold else FontWeight.Normal) }
+            )
+        }
+
+        // Tab Contents
+        when (uiState.selectedTab) {
+            0 -> SubcategoryBudgetsTabContent(
+                mainCategoryGroups = mainCategoryGroups,
+                totalMtdIncome = totalMtdIncome,
+                onAddBudget = { viewModel.openCreateBudgetDialog() },
+                onEditBudget = { viewModel.openEditBudgetDialog(it) },
+                onDeleteBudget = { viewModel.deleteBudget(it) }
+            )
+            1 -> CategoriesTabContent(
+                categories = uiState.categories,
+                onAddCategory = { viewModel.openCreateCategoryDialog() },
+                onEditCategory = { viewModel.openEditMainCategoryDialog(it) },
+                onDeleteCategory = { viewModel.deleteMainCategory(it) },
+                onAddSubCategory = { viewModel.openAddSubCategoryDialog(it) },
+                onEditSubCategory = { main, sub -> viewModel.openEditSubCategoryDialog(main, sub) },
+                onDeleteSubCategory = { main, sub -> viewModel.deleteSubCategory(main, sub) }
+            )
+            2 -> RulesTabContent(
+                rules = uiState.rules,
+                isAutoRunEnabled = uiState.isAutoRunRulesEnabled,
+                onToggleAutoRun = { viewModel.toggleAutoRunRules(it) },
+                onRunAllRules = { viewModel.runAllRules() },
+                onAddRule = { viewModel.openCreateRuleDialog() },
+                onEditRule = { viewModel.openEditRuleDialog(it) },
+                onDeleteRule = { viewModel.deleteRule(it) }
+            )
+        }
+    }
 }
+
+// -------------------------------------------------------------
+// 1. Budgets Tab (Subcategories + Income Percent Conversions)
+// -------------------------------------------------------------
 
 @Composable
 private fun SubcategoryBudgetsTabContent(
     mainCategoryGroups: List<MainCategoryBudgetGroup>,
-    totalBudgetsCount: Int,
+    totalMtdIncome: Double,
     onAddBudget: () -> Unit,
     onEditBudget: (Budget) -> Unit,
     onDeleteBudget: (String) -> Unit
@@ -271,7 +340,7 @@ private fun SubcategoryBudgetsTabContent(
                     ) {
                         Text("📊", style = MaterialTheme.typography.displaySmall)
                         Text("No Subcategory Budgets Set", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("Budget against specific subcategories (e.g. Fast Food, Gas, Rent) to automatically calculate main category totals!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text("Budget against specific subcategories (e.g. Fast Food, Gas, Rent) to automatically calculate main category totals and income percentages!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 }
             }
@@ -314,8 +383,9 @@ private fun SubcategoryBudgetsTabContent(
                                     color = Color.White.copy(alpha = 0.6f)
                                 )
                             }
+                            val groupPercentIncome = if (totalMtdIncome > 0) (group.totalTargetAmount / totalMtdIncome * 100.0) else 0.0
                             Text(
-                                text = "Total Limit: ${CurrencyFormatter.format(group.totalTargetAmount)}/mo (Auto-Sum)",
+                                text = "Total Limit: ${CurrencyFormatter.format(group.totalTargetAmount)}/mo (Auto-Sum) • ${String.format("%.1f", groupPercentIncome)}% of Income",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
@@ -376,9 +446,16 @@ private fun SubcategoryBudgetsTabContent(
                                                 color = Color.White,
                                                 style = MaterialTheme.typography.bodyMedium
                                             )
-                                            val typeLabel = if (subBudget.categoryType == BudgetCategoryType.PERCENT_INCOME) "${subBudget.incomePercentage}% of Income" else "Fixed Monthly"
+                                            // Compute reciprocal metrics: Amount <-> Income %
+                                            val dualMetricLabel = if (subBudget.categoryType == BudgetCategoryType.PERCENT_INCOME) {
+                                                val percent = subBudget.incomePercentage ?: 0.0
+                                                "${percent}% of Income (≈ ${CurrencyFormatter.format(subBudget.targetAmount)}/mo)"
+                                            } else {
+                                                val percentOfIncome = if (totalMtdIncome > 0) (subBudget.targetAmount / totalMtdIncome * 100.0) else 0.0
+                                                "${CurrencyFormatter.format(subBudget.targetAmount)}/mo (${String.format("%.1f", percentOfIncome)}% of Income)"
+                                            }
                                             Text(
-                                                text = "${CurrencyFormatter.format(subBudget.spentAmount)} / ${CurrencyFormatter.format(subBudget.targetAmount)} ($typeLabel)",
+                                                text = "Spent: ${CurrencyFormatter.format(subBudget.spentAmount)} / $dualMetricLabel",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = if (subBudget.isOverBudget) DuoRed else Color.White.copy(alpha = 0.7f)
                                             )
@@ -404,7 +481,289 @@ private fun SubcategoryBudgetsTabContent(
 }
 
 // -------------------------------------------------------------
-// Subcategory Budget Creation & Edit Dialog
+// 2. Categories Tab (Full Main & Sub Editing & Renaming)
+// -------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CategoriesTabContent(
+    categories: List<CategoryHierarchy>,
+    onAddCategory: () -> Unit,
+    onEditCategory: (String) -> Unit,
+    onDeleteCategory: (String) -> Unit,
+    onAddSubCategory: (String) -> Unit,
+    onEditSubCategory: (String, String) -> Unit,
+    onDeleteSubCategory: (String, String) -> Unit
+) {
+    val totalSubs = categories.sumOf { it.subCategories.size }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                DuolingoPressableButton(
+                    onClick = onAddCategory,
+                    backgroundColor = DuoBlue,
+                    shadowColor = DuoBlueDark,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(6.dp))
+                    Text("New Main Category", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Quest Progress:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    Text("${categories.size}/6 Main  •  $totalSubs/25 Subs", fontWeight = FontWeight.Bold, color = if (categories.size >= 6 && totalSubs >= 25) DuoGreenDark else DuoBlue)
+                }
+            }
+        }
+
+        items(categories, key = { it.mainCategory }) { cat ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
+                                fontWeight = FontWeight.Black,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            IconButton(onClick = { onEditCategory(cat.mainCategory) }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit category", tint = DuoBlue, modifier = Modifier.size(14.dp))
+                            }
+                            IconButton(onClick = { onDeleteCategory(cat.mainCategory) }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete category", tint = DuoRed, modifier = Modifier.size(14.dp))
+                            }
+                        }
+
+                        DuolingoPressableButton(
+                            onClick = { onAddSubCategory(cat.mainCategory) },
+                            backgroundColor = DuoGreen,
+                            shadowColor = DuoGreenDark,
+                            cornerRadius = 8.dp,
+                            shadowHeight = 2.dp
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Add Sub", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    if (cat.subCategories.isEmpty()) {
+                        Text("No subcategories yet. Tap '+ Add Sub' to add specific items!", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f))
+                    } else {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            cat.subCategories.forEach { sub ->
+                                Card(
+                                    shape = Shapes.small,
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1726))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = sub,
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.clickable { onEditSubCategory(cat.mainCategory, sub) }
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Rename subcategory",
+                                            tint = DuoBlue,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable { onEditSubCategory(cat.mainCategory, sub) }
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Delete subcategory",
+                                            tint = DuoRed,
+                                            modifier = Modifier
+                                                .size(14.dp)
+                                                .clickable { onDeleteSubCategory(cat.mainCategory, sub) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// 3. Rules Tab (Auto-Run Toggle, Trigger All, Live Matches)
+// -------------------------------------------------------------
+
+@Composable
+private fun RulesTabContent(
+    rules: List<Rule>,
+    isAutoRunEnabled: Boolean,
+    onToggleAutoRun: (Boolean) -> Unit,
+    onRunAllRules: () -> Unit,
+    onAddRule: () -> Unit,
+    onEditRule: (Rule) -> Unit,
+    onDeleteRule: (String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Auto-Run Settings & Manual Trigger
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("⚡ Auto-Run Rules", fontWeight = FontWeight.Bold, color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                            Text("Automatically categorizes transactions on app load & hourly", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+                        }
+                        Switch(
+                            checked = isAutoRunEnabled,
+                            onCheckedChange = onToggleAutoRun,
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = DuoGreen)
+                        )
+                    }
+
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                    DuolingoPressableButton(
+                        onClick = onRunAllRules,
+                        backgroundColor = DuoGreen,
+                        shadowColor = DuoGreenDark,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Run All Rules Now", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            DuolingoPressableButton(
+                onClick = onAddRule,
+                backgroundColor = DuoBlue,
+                shadowColor = DuoBlueDark,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Create Auto-Categorization Rule", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (rules.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                    shape = Shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("⚡", style = MaterialTheme.typography.displaySmall)
+                        Text("No Rules Configured", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Create rules (e.g. \"Starbucks\" ➔ Dining > Coffee) to automatically categorize bank syncs!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+            }
+        }
+
+        items(rules, key = { it.id }) { rule ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("If description contains \"${rule.pattern}\"", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("➔ Assign: ${rule.category}${if (rule.subCategory.isNotBlank()) " > ${rule.subCategory}" else ""}", style = MaterialTheme.typography.bodySmall, color = DuoGreen, fontWeight = FontWeight.Medium)
+                        Text("🔥 ${rule.matchCount} transactions currently matched", style = MaterialTheme.typography.labelSmall, color = DuoGoldDark, fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { onEditRule(rule) }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue)
+                        }
+                        IconButton(onClick = { onDeleteRule(rule.id) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// Duolingo 3D Dialogs & Editors
 // -------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -595,10 +954,6 @@ fun DuolingoSubcategoryBudgetDialog(
     )
 }
 
-// -------------------------------------------------------------
-// Income Category Selector Dialog
-// -------------------------------------------------------------
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DuolingoIncomeCategoryDialog(
@@ -673,182 +1028,189 @@ fun DuolingoIncomeCategoryDialog(
     )
 }
 
-// -------------------------------------------------------------
-// Categories & Rules Tabs
-// -------------------------------------------------------------
+@Composable
+fun DuolingoRenameCategoryDialog(
+    currentName: String,
+    title: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var newName by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = newName,
+                onValueChange = { newName = it },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            DuolingoPressableButton(
+                onClick = {
+                    if (newName.isNotBlank()) {
+                        onSave(newName.trim())
+                    }
+                },
+                backgroundColor = DuoGreen,
+                shadowColor = DuoGreenDark,
+                cornerRadius = 10.dp
+            ) {
+                Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Cancel", color = Color.White)
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun CategoriesTabContent(
+fun DuolingoRuleDialog(
+    initialRule: Rule?,
     categories: List<CategoryHierarchy>,
-    onAddCategory: () -> Unit,
-    onAddSubCategory: (String) -> Unit,
-    onDeleteSubCategory: (String, String) -> Unit
+    nextPriority: Int,
+    onCalculateMatches: (String, Double?, Double?) -> Int,
+    onDismiss: () -> Unit,
+    onSave: (Rule) -> Unit
 ) {
-    val totalSubs = categories.sumOf { it.subCategories.size }
+    var pattern by remember { mutableStateOf(initialRule?.pattern ?: "") }
+    var selectedMain by remember { mutableStateOf(initialRule?.category ?: categories.firstOrNull()?.mainCategory.orEmpty()) }
+    val activeCat = categories.find { it.mainCategory.equals(selectedMain, ignoreCase = true) }
+    var selectedSub by remember { mutableStateOf(initialRule?.subCategory ?: "") }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DuolingoPressableButton(
-                    onClick = onAddCategory,
-                    backgroundColor = DuoBlue,
-                    shadowColor = DuoBlueDark,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                    Spacer(Modifier.width(6.dp))
-                    Text("New Main Category", color = Color.White, fontWeight = FontWeight.Bold)
+    val liveMatches = remember(pattern) {
+        onCalculateMatches(pattern, null, null)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialRule != null) "Edit Auto-Rule" else "⚡ New Auto-Rule", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = pattern,
+                    onValueChange = { pattern = it },
+                    label = { Text("If Description Contains (e.g. Starbucks, Shell)") },
+                    placeholder = { Text("e.g. Target, Uber, Amazon") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                if (pattern.isNotBlank()) {
+                    Text(
+                        text = "🔥 Matches $liveMatches existing transactions right now!",
+                        fontWeight = FontWeight.Bold,
+                        color = DuoGoldDark,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
-            }
-        }
 
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = Shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Text("Assign to Category:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("Quest Progress:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                    Text("${categories.size}/6 Main  •  $totalSubs/25 Subs", fontWeight = FontWeight.Bold, color = if (categories.size >= 6 && totalSubs >= 25) DuoGreenDark else DuoBlue)
-                }
-            }
-        }
-
-        items(categories, key = { it.mainCategory }) { cat ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
-                            fontWeight = FontWeight.Black,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White
-                        )
-
-                        DuolingoPressableButton(
-                            onClick = { onAddSubCategory(cat.mainCategory) },
-                            backgroundColor = DuoGreen,
-                            shadowColor = DuoGreenDark,
-                            cornerRadius = 8.dp,
-                            shadowHeight = 2.dp
+                    categories.forEach { cat ->
+                        val isSelected = selectedMain.equals(cat.mainCategory, ignoreCase = true)
+                        Card(
+                            modifier = Modifier
+                                .clip(Shapes.small)
+                                .clickable {
+                                    selectedMain = cat.mainCategory
+                                    selectedSub = cat.subCategories.firstOrNull().orEmpty()
+                                },
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Add Sub", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            )
                         }
                     }
+                }
 
-                    if (cat.subCategories.isEmpty()) {
-                        Text("No subcategories yet. Tap '+ Add Sub' to add specific items!", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f))
-                    } else {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            cat.subCategories.forEach { sub ->
-                                Card(
-                                    shape = Shapes.small,
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1726))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(sub, color = Color.White, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-                                        Spacer(Modifier.width(4.dp))
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Delete subcategory",
-                                            tint = DuoRed,
-                                            modifier = Modifier
-                                                .size(14.dp)
-                                                .clickable { onDeleteSubCategory(cat.mainCategory, sub) }
-                                        )
-                                    }
-                                }
+                if (!activeCat?.subCategories.isNullOrEmpty()) {
+                    Text("Subcategory (Optional):", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        activeCat!!.subCategories.forEach { sub ->
+                            val isSelected = selectedSub.equals(sub, ignoreCase = true)
+                            Card(
+                                modifier = Modifier
+                                    .clip(Shapes.small)
+                                    .clickable { selectedSub = if (isSelected) "" else sub },
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                            ) {
+                                Text(
+                                    text = sub,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun RulesTabContent(
-    rules: List<Rule>,
-    onAddRule: () -> Unit,
-    onDeleteRule: (String) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
+        },
+        confirmButton = {
             DuolingoPressableButton(
-                onClick = onAddRule,
-                backgroundColor = DuoBlue,
-                shadowColor = DuoBlueDark,
-                modifier = Modifier.fillMaxWidth()
+                onClick = {
+                    if (pattern.isNotBlank() && selectedMain.isNotBlank()) {
+                        val rule = (initialRule ?: Rule(
+                            id = UUID.randomUUID().toString(),
+                            name = pattern.trim(),
+                            priority = nextPriority,
+                            pattern = pattern.trim(),
+                            category = selectedMain,
+                            subCategory = selectedSub
+                        )).copy(
+                            pattern = pattern.trim(),
+                            category = selectedMain,
+                            subCategory = selectedSub
+                        )
+                        onSave(rule)
+                    }
+                },
+                backgroundColor = DuoGreen,
+                shadowColor = DuoGreenDark,
+                cornerRadius = 10.dp
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("Create Auto-Categorization Rule", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Save & Apply Rule ➔", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Cancel", color = Color.White)
             }
         }
-
-        items(rules, key = { it.id }) { rule ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("If payee contains \"${rule.pattern}\"", fontWeight = FontWeight.Bold, color = Color.White)
-                        Text("➔ Assign ${rule.category}${if (rule.subCategory.isNotBlank()) " > ${rule.subCategory}" else ""}", style = MaterialTheme.typography.bodySmall, color = DuoGreen)
-                    }
-
-                    IconButton(onClick = { onDeleteRule(rule.id) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed)
-                    }
-                }
-            }
-        }
-    }
+    )
 }
 
 @Composable

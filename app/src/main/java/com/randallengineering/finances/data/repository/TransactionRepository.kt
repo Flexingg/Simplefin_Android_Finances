@@ -109,6 +109,27 @@ class TransactionRepository(
         return Resource.Success(Unit)
     }
 
+    suspend fun saveTransactionsBatch(updatedList: List<Transaction>): Resource<Unit> {
+        val current = _transactionsFlow.value.toMutableList()
+        val updateMap = updatedList.associateBy { it.id }
+        val merged = current.map { existing -> updateMap[existing.id] ?: existing }
+        saveLocalTransactions(merged)
+
+        try {
+            val batch = firestore?.batch()
+            if (batch != null) {
+                for (tx in updatedList) {
+                    val docRef = firestore.collection("transactions").document(tx.id)
+                    batch.set(docRef, TransactionEntity.fromDomain(tx))
+                }
+                batch.commit()
+            }
+        } catch (e: Exception) {
+            // Offline fallback
+        }
+        return Resource.Success(Unit)
+    }
+
     suspend fun saveTransactionSplits(
         transactionId: String,
         splits: List<TransactionSplit>

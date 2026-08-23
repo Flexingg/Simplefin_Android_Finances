@@ -7,6 +7,7 @@ import com.google.firebase.firestore.Query
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.RuleEntity
 import com.randallengineering.finances.domain.model.Rule
+import com.randallengineering.finances.domain.model.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,10 +23,20 @@ class RuleRepository(
     private val prefs = context.getSharedPreferences("randall_finances_rules", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
     private val _rulesFlow = MutableStateFlow<List<Rule>>(emptyList())
+    private val _autoRunFlow = MutableStateFlow(prefs.getBoolean("auto_run_rules_enabled", true))
 
     init {
         loadLocalRules()
         attachFirestoreListenerIfAvailable()
+    }
+
+    fun isAutoRunEnabled(): Boolean = _autoRunFlow.value
+
+    fun getAutoRunEnabledFlow(): Flow<Boolean> = _autoRunFlow.asStateFlow()
+
+    fun setAutoRunEnabled(enabled: Boolean) {
+        _autoRunFlow.value = enabled
+        prefs.edit().putBoolean("auto_run_rules_enabled", enabled).apply()
     }
 
     private fun loadLocalRules() {
@@ -108,37 +119,73 @@ class RuleRepository(
     }
 
     suspend fun updateRulesPriority(rules: List<Rule>): Resource<Unit> {
-        val updated = rules.mapIndexed { index, rule -> rule.copy(priority = index + 1) }
+        val updated = rules.mapIndexed { idx, r -> r.copy(priority = idx + 1) }
         saveLocalRules(updated)
 
         try {
-            if (firestore != null) {
-                val batch = firestore.batch()
-                updated.forEach { r ->
-                    batch.update(firestore.collection("rules").document(r.id), "priority", r.priority)
+            val batch = firestore?.batch()
+            if (batch != null) {
+                for (r in updated) {
+                    val docRef = firestore.collection("rules").document(r.id)
+                    batch.update(docRef, "priority", r.priority)
                 }
                 batch.commit()
             }
         } catch (e: Exception) {
-            // Ignored if offline
+            // Offline fallback
         }
         return Resource.Success(Unit)
     }
 
-    suspend fun incrementMatchCount(ruleId: String): Resource<Unit> {
-        val current = _rulesFlow.value.toMutableList()
-        val index = current.indexOfFirst { it.id == ruleId }
-        if (index >= 0) {
-            current[index] = current[index].copy(matchCount = current[index].matchCount + 1)
-            saveLocalRules(current)
+    /**
+     * Executes a single rule against transactions, updating matching transactions.
+     */
+    fun applySingleRule(rule: Rule, transactions: List<Transaction>): Pair<List<Transaction>, Int> {
+        val updated = mutableListOf<Transaction>()
+        var count = 0
 
-            try {
-                firestore?.collection("rules")?.document(ruleId)
-                    ?.update("matchCount", FieldValue.increment(1))
-            } catch (e: Exception) {
-                // Ignored if offline
+        for (tx in transactions) {
+            if (rule.matches(tx.originalDesc, tx.amount)) {
+                if (tx.category != rule.category || tx.subCategory != rule.subCategory) {
+                    updated.add(
+                        tx.copy(
+                            category = rule.category,
+                            subCategory = rule.subCategory,
+                            matchedRuleId = rule.id
+                        )
+                    )
+                    count++
+                }
             }
         }
-        return Resource.Success(Unit)
+        return Pair(updated, count)
+    }
+
+    /**
+     * Executes all rules sequentially ordered by priority.
+     */
+    fun applyAllRules(rules: List<Rule>, transactions: List<Transaction>): Pair<List<Transaction>, Int> {
+        val sortedRules = rules.filter { it.isActive }.sortedBy { it.priority }
+        val updatedMap = mutableMapOf<String, Transaction>()
+        var totalUpdatedCount = 0
+
+        for (tx in transactions) {
+            var currentTx = tx
+            for (rule in sortedRules) {
+                if (rule.matches(currentTx.originalDesc, currentTx.amount)) {
+                    if (currentTx.category != rule.category || currentTx.subCategory != rule.subCategory) {
+                        currentTx = currentTx.copy(
+                            category = rule.category,
+                            subCategory = rule.subCategory,
+                            matchedRuleId = rule.id
+                        )
+                        updatedMap[currentTx.id] = currentTx
+                        totalUpdatedCount++
+                    }
+                    break // Stop on highest priority matching rule
+                }
+            }
+        }
+        return Pair(updatedMap.values.toList(), totalUpdatedCount)
     }
 }
