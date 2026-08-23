@@ -22,7 +22,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -85,9 +87,20 @@ fun ActionQueueScreen(
 
     val isUncategorized = currentTx?.category.isNullOrBlank() || currentTx?.category.equals("Uncategorized", ignoreCase = true)
     var txNote by remember(currentTx?.id) { mutableStateOf(currentTx?.notes.orEmpty()) }
+    var searchQuery by remember { mutableStateOf("") }
     var isExpandedAllCategories by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var selectedCategoryForSub by remember { mutableStateOf<CategoryHierarchy?>(null) }
+    var isAutoRuleExpanded by remember(currentTx?.id) { mutableStateOf(false) }
+
+    // Clean suggested rule pattern for active transaction
+    var customRulePattern by remember(currentTx?.id) {
+        mutableStateOf(currentTx?.let { viewModel.extractCleanMerchantPattern(it.originalDesc) } ?: "")
+    }
+
+    val liveRuleMatches = remember(customRulePattern, uiState.allTransactions) {
+        if (customRulePattern.isNotBlank()) viewModel.calculateMatchesForPattern(customRulePattern) else 0
+    }
 
     // Add Category Dialog
     if (showAddCategoryDialog) {
@@ -119,9 +132,9 @@ fun ActionQueueScreen(
                 DuolingoPressableButton(
                     onClick = {
                         if (newCatName.isNotBlank()) {
-                            viewModel.addNewCategory(newCatName.trim(), newSubName.trim().ifBlank { null })
+                            viewModel.addCustomCategory(newCatName.trim(), newSubName.trim().ifBlank { null })
                             if (currentTx != null) {
-                                viewModel.editCategory(currentTx, newCatName.trim(), newSubName.trim())
+                                viewModel.editCategory(currentTx, newCatName.trim(), newSubName.trim(), txNote)
                             }
                             showAddCategoryDialog = false
                         }
@@ -206,6 +219,29 @@ fun ActionQueueScreen(
                 )
             }
 
+            // Rule Created Success Banner
+            if (uiState.lastRuleCreatedMessage != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = Shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = DuoGreen.copy(alpha = 0.2f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(uiState.lastRuleCreatedMessage!!, color = DuoGreenDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = DuoGreenDark,
+                            modifier = Modifier.size(16.dp).clickable { viewModel.clearRuleMessage() }
+                        )
+                    }
+                }
+            }
+
             if (uiState.isSessionComplete || currentTx == null) {
                 // Celebration Completion State
                 Card(
@@ -259,7 +295,7 @@ fun ActionQueueScreen(
                         colors = CardDefaults.cardColors(containerColor = if (isUncategorized) DuoGold.copy(alpha = 0.18f) else DuoGreen.copy(alpha = 0.15f))
                     ) {
                         Text(
-                            text = if (isUncategorized) "Choose a category below to earn +25 XP and avoid heart loss!" else "Is this category correct? Confirm or change it below!",
+                            text = if (isUncategorized) "Choose a category or generate an Auto-Rule to earn bonus XP!" else "Is this category correct? Confirm, search, or create an Auto-Rule below!",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             color = if (isUncategorized) DuoGoldDark else DuoGreenDark,
@@ -369,7 +405,174 @@ fun ActionQueueScreen(
                     }
                 }
 
+                // -------------------------------------------------------------
+                // ⚡ Auto-Rule Generator Card inside Queue
+                // -------------------------------------------------------------
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = Shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isAutoRuleExpanded = !isAutoRuleExpanded },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Bolt, contentDescription = null, tint = DuoGold, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "Auto-Rule Generator (+35 XP)",
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            Icon(
+                                if (isAutoRuleExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                        }
+
+                        if (!isAutoRuleExpanded) {
+                            Text(
+                                text = "Always auto-categorize \"$customRulePattern\" in future syncs!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        AnimatedVisibility(visible = isAutoRuleExpanded) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                OutlinedTextField(
+                                    value = customRulePattern,
+                                    onValueChange = { customRulePattern = it },
+                                    label = { Text("Match Pattern / Merchant Keyword") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Text(
+                                    text = "🔥 Matches $liveRuleMatches existing transactions in database",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DuoGoldDark,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                if (!isUncategorized) {
+                                    DuolingoPressableButton(
+                                        onClick = {
+                                            viewModel.createAutoRuleAndCategorize(
+                                                tx = currentTx,
+                                                pattern = customRulePattern,
+                                                newCategory = currentTx.category,
+                                                newSubCategory = currentTx.subCategory,
+                                                note = txNote
+                                            )
+                                        },
+                                        backgroundColor = DuoGold,
+                                        shadowColor = DuoGoldDark,
+                                        cornerRadius = 10.dp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Icon(Icons.Default.Bolt, contentDescription = null, tint = Color.White)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "Always Assign \"$customRulePattern\" ➔ ${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // -------------------------------------------------------------
+                // 🔍 Quick Search Categories & Subcategories (Instant Matching)
+                // -------------------------------------------------------------
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("🔍 Quick Search Categories & Subs (e.g. fu, gas, coffee)...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = DuoGreen) },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Instant Search Results
+                if (searchQuery.isNotBlank()) {
+                    val searchResults = viewModel.searchCategoriesAndSubCategories(searchQuery, uiState.availableCategories)
+
+                    if (searchResults.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = Shapes.medium,
+                            colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                        ) {
+                            Text(
+                                text = "No category or subcategory found for \"$searchQuery\". Tap '+ New Category' below to create it!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Search Matches (Tap 1-click to assign):",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            searchResults.forEach { result ->
+                                val emoji = getCategoryEmoji(result.mainCategory)
+                                DuolingoPressableButton(
+                                    onClick = {
+                                        viewModel.editCategory(currentTx, result.mainCategory, result.subCategory, txNote)
+                                        searchQuery = ""
+                                    },
+                                    backgroundColor = DuoGreen,
+                                    shadowColor = DuoGreenDark,
+                                    cornerRadius = 10.dp,
+                                    shadowHeight = 3.dp
+                                ) {
+                                    Text(
+                                        text = "$emoji ${result.fullDisplayName}",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // -------------------------------------------------------------
                 // Primary / Top Categories Grid
+                // -------------------------------------------------------------
                 val topCategories = uiState.availableCategories.take(6)
                 Text(
                     text = "Select Category from Database:",
@@ -495,7 +698,7 @@ fun ActionQueueScreen(
                                                 if (cat.subCategories.isNotEmpty()) {
                                                     selectedCategoryForSub = cat
                                                 } else {
-                                                    viewModel.editCategory(currentTx, cat.mainCategory, "")
+                                                    viewModel.editCategory(currentTx, cat.mainCategory, "", txNote)
                                                 }
                                             },
                                         colors = CardDefaults.cardColors(
@@ -543,7 +746,7 @@ fun ActionQueueScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 DuolingoPressableButton(
                                     onClick = {
-                                        viewModel.editCategory(currentTx, cat.mainCategory, "")
+                                        viewModel.editCategory(currentTx, cat.mainCategory, "", txNote)
                                         selectedCategoryForSub = null
                                     },
                                     backgroundColor = DuoGreen,
@@ -556,7 +759,7 @@ fun ActionQueueScreen(
                                 cat.subCategories.forEach { sub ->
                                     DuolingoPressableButton(
                                         onClick = {
-                                            viewModel.editCategory(currentTx, cat.mainCategory, sub)
+                                            viewModel.editCategory(currentTx, cat.mainCategory, sub, txNote)
                                             selectedCategoryForSub = null
                                         },
                                         backgroundColor = DuoCardDark,
@@ -612,7 +815,7 @@ private fun getCategoryEmoji(name: String): String {
     return when {
         lower.contains("dining") || lower.contains("food") || lower.contains("restaurant") -> "🍔"
         lower.contains("grocer") -> "🛒"
-        lower.contains("auto") || lower.contains("gas") || lower.contains("transport") -> "🚗"
+        lower.contains("auto") || lower.contains("gas") || lower.contains("fuel") || lower.contains("transport") -> "🚗"
         lower.contains("util") || lower.contains("electric") || lower.contains("bill") -> "💡"
         lower.contains("shop") || lower.contains("retail") || lower.contains("amazon") -> "🛍️"
         lower.contains("entertain") || lower.contains("fun") || lower.contains("game") -> "🍿"

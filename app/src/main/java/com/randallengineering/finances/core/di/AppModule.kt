@@ -77,6 +77,6 @@ val appModule = module {
     viewModel { AiChatbotViewModel(get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.quest.QuestPathViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
+    viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.gear.GearLoadoutViewModel(get()) }
 }
