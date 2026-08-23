@@ -52,6 +52,7 @@ val appModule = module {
     single { CategoryRepository(androidContext(), getOrNull()) }
     single { SimpleFinRepository(androidContext(), get(), getOrNull(), getOrNull()) }
     single { AmazonRepository(androidContext(), getOrNull(), getOrNull()) }
+    single { com.randallengineering.finances.data.repository.GamificationRepository(androidContext(), getOrNull()) }
 
     // MCP Tools Suite
     single { FinancialMcpTools(get(), get(), get(), get(), get(), get(), get()) }
@@ -75,4 +76,7 @@ val appModule = module {
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { com.randallengineering.finances.ui.screens.quest.QuestPathViewModel(get(), get(), get(), get()) }
+    viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get()) }
+    viewModel { com.randallengineering.finances.ui.screens.gear.GearLoadoutViewModel(get()) }
 }

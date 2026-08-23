@@ -6,9 +6,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -35,9 +41,13 @@ import androidx.navigation.navArgument
 import com.randallengineering.finances.ui.components.AiChatbotOverlay
 import com.randallengineering.finances.ui.screens.ai.AiAdvisorScreen
 import com.randallengineering.finances.ui.screens.budgets.BudgetsScreen
+import com.randallengineering.finances.ui.screens.gear.GearLoadoutScreen
 import com.randallengineering.finances.ui.screens.goals.GoalsAndWantsScreen
 import com.randallengineering.finances.ui.screens.insights.InsightsScreen
 import com.randallengineering.finances.ui.screens.onboarding.SimpleFinOnboardingScreen
+import com.randallengineering.finances.ui.screens.quest.QuestPathScreen
+import com.randallengineering.finances.ui.screens.queue.ActionQueueScreen
+import com.randallengineering.finances.ui.screens.rules.RulesManagementScreen
 import com.randallengineering.finances.ui.screens.settings.SettingsScreen
 import com.randallengineering.finances.ui.screens.transactions.TransactionDetailScreen
 import com.randallengineering.finances.ui.screens.transactions.TransactionListScreen
@@ -49,11 +59,11 @@ data class BottomNavItem(
 )
 
 val BottomNavItems = listOf(
-    BottomNavItem(Screen.Transactions.route, "Transactions", Icons.AutoMirrored.Filled.ReceiptLong),
-    BottomNavItem(Screen.Budgets.route, "Budgets", Icons.Default.PieChart),
-    BottomNavItem(Screen.Insights.route, "Insights", Icons.Default.BarChart),
-    BottomNavItem(Screen.Goals.route, "Goals", Icons.Default.Savings),
-    BottomNavItem(Screen.AiAdvisor.route, "AI Advisor", Icons.Default.AutoAwesome)
+    BottomNavItem(Screen.QuestPath.route, "Quests", Icons.Default.Map),
+    BottomNavItem(Screen.ActionQueue.route, "Queue", Icons.Default.Style),
+    BottomNavItem(Screen.GearLoadout.route, "Gear", Icons.Default.Shield),
+    BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong),
+    BottomNavItem(Screen.Insights.route, "Insights", Icons.Default.BarChart)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,20 +75,20 @@ fun FinanceNavHost(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val shouldShowBottomBar = BottomNavItems.any { it.route == currentRoute }
-    val currentTitle = when (currentRoute) {
-        Screen.Transactions.route -> "Transactions"
-        Screen.Budgets.route -> "Budgets & Categories"
-        Screen.Insights.route -> "Insights & Analytics"
-        Screen.Goals.route -> "Savings & Goals"
-        Screen.AiAdvisor.route -> "AI Advisor (Gemini)"
-        else -> "Randall Finances"
-    }
 
     Scaffold(
         topBar = {
-            if (shouldShowBottomBar) {
+            if (shouldShowBottomBar && currentRoute != Screen.QuestPath.route && currentRoute != Screen.ActionQueue.route && currentRoute != Screen.GearLoadout.route) {
                 TopAppBar(
                     title = {
+                        val currentTitle = when (currentRoute) {
+                            Screen.Transactions.route -> "Transaction History"
+                            Screen.Budgets.route -> "Budgets & Categories"
+                            Screen.Insights.route -> "Insights & Analytics"
+                            Screen.Goals.route -> "Savings & Goals"
+                            Screen.AiAdvisor.route -> "AI Advisor (Gemini)"
+                            else -> "Randall Finances"
+                        }
                         Text(
                             text = currentTitle,
                             fontWeight = FontWeight.Bold,
@@ -101,14 +111,17 @@ fun FinanceNavHost(
             }
         },
         bottomBar = {
-            AnimatedVisibility(visible = shouldShowBottomBar) {
+            if (shouldShowBottomBar) {
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 6.dp
                 ) {
                     BottomNavItems.forEach { item ->
-                        val isSelected = currentRoute == item.route
+                        val selected = currentRoute == item.route
                         NavigationBarItem(
-                            selected = isSelected,
+                            icon = { Icon(item.icon, contentDescription = item.title) },
+                            label = { Text(item.title, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
+                            selected = selected,
                             onClick = {
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -117,9 +130,7 @@ fun FinanceNavHost(
                                     launchSingleTop = true
                                     restoreState = true
                                 }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) }
+                            }
                         )
                     }
                 }
@@ -128,66 +139,68 @@ fun FinanceNavHost(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Transactions.route,
+            startDestination = Screen.QuestPath.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.QuestPath.route) {
+                QuestPathScreen(
+                    onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) }
+                )
+            }
+            composable(Screen.ActionQueue.route) {
+                ActionQueueScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.GearLoadout.route) {
+                GearLoadoutScreen()
+            }
             composable(Screen.Onboarding.route) {
                 SimpleFinOnboardingScreen(
                     onNavigateToTransactions = {
-                        navController.navigate(Screen.Transactions.route) {
+                        navController.navigate(Screen.QuestPath.route) {
                             popUpTo(Screen.Onboarding.route) { inclusive = true }
                         }
                     }
                 )
             }
-
             composable(Screen.Transactions.route) {
                 TransactionListScreen(
-                    onNavigateToDetail = { id ->
-                        navController.navigate(Screen.TransactionDetail.createRoute(id))
+                    onNavigateToDetail = { txId ->
+                        navController.navigate(Screen.TransactionDetail.createRoute(txId))
                     }
                 )
             }
-
             composable(
                 route = Screen.TransactionDetail.route,
                 arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
             ) { backStackEntry ->
-                val txId = backStackEntry.arguments?.getString("transactionId") ?: ""
+                val txId = backStackEntry.arguments?.getString("transactionId").orEmpty()
                 TransactionDetailScreen(
                     transactionId = txId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-
             composable(Screen.Budgets.route) {
                 BudgetsScreen()
             }
-
+            composable(Screen.Rules.route) {
+                RulesManagementScreen()
+            }
             composable(Screen.Insights.route) {
                 InsightsScreen()
             }
-
             composable(Screen.Goals.route) {
                 GoalsAndWantsScreen()
             }
-
-            composable(Screen.Rules.route) {
-                BudgetsScreen() // Merged into BudgetsScreen
-            }
-
             composable(Screen.AiAdvisor.route) {
                 AiAdvisorScreen()
             }
-
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
         }
-
-        // Floating AI Copilot Assistant
-        AiChatbotOverlay()
     }
 }

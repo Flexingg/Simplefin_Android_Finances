@@ -1,6 +1,9 @@
 package com.randallengineering.finances.ui.navigation
 
 sealed class Screen(val route: String) {
+    data object QuestPath : Screen("quest_path")
+    data object ActionQueue : Screen("action_queue")
+    data object GearLoadout : Screen("gear_loadout")
     data object Onboarding : Screen("onboarding")
     data object Transactions : Screen("transactions")
     data object TransactionDetail : Screen("transaction_detail/{transactionId}") {
