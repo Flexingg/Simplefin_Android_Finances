@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Randall Finances</title>
+  <style>
+    :root {
+      --primary: #6750A4;
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+    h1 {
+      color: #FFFFFF;
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+    .effective-date {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      color: #E2E8F0;
+      font-size: 1.35rem;
+      margin-top: 0;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    p, li {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: #F1F5F9;
+    }
+    .badge {
+      display: inline-block;
+      background-color: rgba(103, 80, 164, 0.25);
+      color: #D0BCFF;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 60px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Legal & Data Privacy</div>
+      <h1>Privacy Policy</h1>
+      <div class="effective-date">Last Updated: August 22, 2026 | Effective Immediately</div>
+    </header>
+
+    <div class="card">
+      <h2>1. Overview & Commitment</h2>
+      <p>
+        Randall Finances ("we", "our", or "the Application") is committed to protecting your privacy. This Privacy Policy describes how we collect, use, store, and safeguard information when you use the Randall Finances mobile application and associated backend services.
+      </p>
+      <p>
+        We build privacy-first personal finance software. We never sell, rent, or monetize your personal or financial data.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. Information We Collect & Third-Party Integrations</h2>
+      <p>Depending on the features you choose to enable, we may process the following types of information:</p>
+      <ul>
+        <li>
+          <strong>Financial & Transaction Data:</strong> When connected to bank sync providers (such as SimpleFIN Bridge), we process account balances, transaction dates, descriptions, payees, and amounts.
+        </li>
+        <li>
+          <strong>Amazon Account Data (Login with Amazon / SP-API):</strong> When you link your Amazon account via Login with Amazon (LWA) and Selling Partner API, we securely receive an authorized OAuth token to retrieve order histories and item-level details (such as item title, ASIN, quantity, and purchase price) solely to match your bank transactions with your purchased items.
+        </li>
+        <li>
+          <strong>User-Created Financial Records:</strong> Categories, subcategories, budgets, savings goals, and regex categorization rules created within the app.
+        </li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>3. How We Use Your Information</h2>
+      <p>We use your information strictly for the following purposes:</p>
+      <ul>
+        <li>To display, organize, and categorize your personal banking transactions.</li>
+        <li>To match Amazon purchases on your bank statement with exact order item breakdowns and ASINs.</li>
+        <li>To calculate pacing, target daily allowances, cash flow analytics, and budget progress.</li>
+        <li>To provide on-device financial insights and conversational AI assistance requested by you.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>4. Data Storage, Security & Encryption</h2>
+      <p>
+        We implement rigorous industry-standard security measures:
+      </p>
+      <ul>
+        <li><strong>Zero Plaintext Storage:</strong> OAuth refresh tokens and API credentials are encrypted at rest and in transit using TLS 1.3 encryption.</li>
+        <li><strong>Local-First Architecture:</strong> Your transaction data and custom categories are stored locally on your device with optional encrypted cloud backup via Google Firebase.</li>
+        <li><strong>No Third-Party Ad Trackers:</strong> The application contains no advertising SDKs, data brokers, or behavioral analytics trackers.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>5. Amazon Data Protection & Retention</h2>
+      <p>
+        In strict accordance with Amazon Selling Partner API and Login with Amazon policies:
+      </p>
+      <ul>
+        <li>We only request permissions necessary to read order data requested by you.</li>
+        <li>We do not store Amazon customer Personally Identifiable Information (PII) or shipping addresses.</li>
+        <li>You can revoke our access to your Amazon account at any time via the Settings page or directly within your Amazon account security settings.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>6. Your Rights & Data Deletion</h2>
+      <p>
+        You retain complete control over your financial data. You may disconnect any connected service (SimpleFIN, Amazon, Firebase) or delete your entire account data at any time directly through the Settings screen in the application.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>7. Contact Us</h2>
+      <p>
+        If you have any questions, concerns, or requests regarding this Privacy Policy or your data, please contact:
+      </p>
+      <p>
+        <strong>Randall Engineering & Technology</strong><br>
+        Email: <a href="mailto:privacy@randallengineering.com" style="color: #D0BCFF;">privacy@randallengineering.com</a><br>
+        Website: <a href="https://randallengineering.com" style="color: #D0BCFF;">randallengineering.com</a>
+      </p>
+    </div>
+
+    <footer>
+      &copy; 2026 Randall Engineering. All rights reserved. | Built for Randall Finances.
+    </footer>
+  </div>
+</body>
+</html>

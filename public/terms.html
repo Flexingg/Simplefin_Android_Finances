@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Collection Policy & Terms of Service - Randall Finances</title>
+  <style>
+    :root {
+      --primary: #6750A4;
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+    h1 {
+      color: #FFFFFF;
+      font-size: 2.2rem;
+      margin-bottom: 8px;
+    }
+    .effective-date {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      color: #E2E8F0;
+      font-size: 1.35rem;
+      margin-top: 0;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    p, li {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: #F1F5F9;
+    }
+    .badge {
+      display: inline-block;
+      background-color: rgba(103, 80, 164, 0.25);
+      color: #D0BCFF;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 60px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Legal & Terms of Service</div>
+      <h1>Data Collection Policy & Terms</h1>
+      <div class="effective-date">Last Updated: August 22, 2026 | Effective Immediately</div>
+    </header>
+
+    <div class="card">
+      <h2>1. Introduction & Acceptance</h2>
+      <p>
+        These Terms of Service and Data Collection Policy govern your use of the Randall Finances mobile application and backend services operated by Randall Engineering. By accessing or using Randall Finances, you agree to be bound by these Terms and our data handling practices.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. Data Collection & Purpose Limitation</h2>
+      <p>
+        Randall Finances strictly limits data collection to the minimum required to provide financial tracking and order item matching:
+      </p>
+      <ul>
+        <li><strong>Financial Account Synchronization:</strong> We collect and store bank transaction details (descriptions, amounts, timestamps, and account names) provided via your linked SimpleFIN Bridge connection.</li>
+        <li><strong>Amazon SP-API / LWA Data:</strong> When authenticated via Login with Amazon, we query order IDs, purchase dates, order totals, and product titles solely to itemize transactions on your financial dashboard.</li>
+        <li><strong>User-Generated Configuration:</strong> Budget targets, spending limits, savings goals, and custom categorization rules created by you.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>3. Data Minimization & Retention</h2>
+      <p>
+        We adhere to data minimization principles:
+      </p>
+      <ul>
+        <li>We do not collect or store credit card numbers, CVVs, or full bank account routing credentials.</li>
+        <li>We do not collect customer mailing addresses or recipient personal information from Amazon orders.</li>
+        <li>All tokens are encrypted using standard cryptographic primitives.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>4. User Control & Data Portability</h2>
+      <p>
+        You have the complete right to:
+      </p>
+      <ul>
+        <li>Disconnect any third-party integration at any time.</li>
+        <li>Export your financial data in open standard formats (JSON / CSV).</li>
+        <li>Request complete and permanent erasure of your user records from our databases.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>5. Service Availability & Disclaimers</h2>
+      <p>
+        Randall Finances is a financial organization and tracking tool, not an accounting or investment advisory firm. We strive for high availability and accuracy, but third-party financial institution uptime and Amazon API response times may vary based on external provider availability.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>6. Governing Law & Contact</h2>
+      <p>
+        These terms shall be governed by the laws of the United States. For any inquiries regarding our Terms of Service or Data Collection Policy, please contact:
+      </p>
+      <p>
+        <strong>Randall Engineering</strong><br>
+        Email: <a href="mailto:support@randallengineering.com" style="color: #D0BCFF;">support@randallengineering.com</a>
+      </p>
+    </div>
+
+    <footer>
+      &copy; 2026 Randall Engineering. All rights reserved. | Built for Randall Finances.
+    </footer>
+  </div>
+</body>
+</html>
