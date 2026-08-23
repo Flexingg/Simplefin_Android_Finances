@@ -9,6 +9,7 @@ import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
 import com.randallengineering.finances.data.repository.GamificationRepository
 import com.randallengineering.finances.data.repository.GoalRepository
+import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Budget
@@ -17,6 +18,7 @@ import com.randallengineering.finances.domain.model.GamificationState
 import com.randallengineering.finances.domain.model.Goal
 import com.randallengineering.finances.domain.model.QuestNode
 import com.randallengineering.finances.domain.model.QuestNodeType
+import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.domain.model.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +48,8 @@ class QuestPathViewModel(
     private val goalRepository: GoalRepository,
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
-    private val simpleFinRepository: SimpleFinRepository
+    private val simpleFinRepository: SimpleFinRepository,
+    private val ruleRepository: RuleRepository
 ) : ViewModel() {
 
     private val _selectedNode = MutableStateFlow<QuestNode?>(null)
@@ -60,6 +63,7 @@ class QuestPathViewModel(
             transactionRepository.getTransactionsFlow(),
             categoryRepository.getCategoriesFlow(),
             simpleFinRepository.getConfigFlow(),
+            ruleRepository.getRulesFlow(),
             _selectedNode,
             _selectedChapter
         )
@@ -70,16 +74,18 @@ class QuestPathViewModel(
         val txsRes = array[3] as? Resource<List<Transaction>>
         val catsRes = array[4] as? Resource<List<CategoryHierarchy>>
         val simpleFinRes = array[5] as? Resource<SimpleFinConfigEntity?>
-        val selected = array[6] as? QuestNode
-        val currentChap = (array[7] as? Int) ?: 1
+        val rulesRes = array[6] as? Resource<List<Rule>>
+        val selected = array[7] as? QuestNode
+        val currentChap = (array[8] as? Int) ?: 1
 
         val budgets = (budgetsRes as? Resource.Success<List<Budget>>)?.data.orEmpty()
         val goals = (goalsRes as? Resource.Success<List<Goal>>)?.data.orEmpty()
         val txs = (txsRes as? Resource.Success<List<Transaction>>)?.data.orEmpty()
         val cats = (catsRes as? Resource.Success<List<CategoryHierarchy>>)?.data.orEmpty()
         val simpleFinConfig = (simpleFinRes as? Resource.Success<SimpleFinConfigEntity?>)?.data
+        val rules = (rulesRes as? Resource.Success<List<Rule>>)?.data.orEmpty()
 
-        val evaluatedNodes = evaluateAllQuests(gState, budgets, goals, txs, cats, simpleFinConfig)
+        val evaluatedNodes = evaluateAllQuests(gState, budgets, goals, txs, cats, simpleFinConfig, rules)
         val active = evaluatedNodes.firstOrNull { !it.isCompleted && it.isUnlocked } ?: evaluatedNodes.lastOrNull()
 
         // Auto-select active chapter if needed
@@ -102,6 +108,10 @@ class QuestPathViewModel(
         _selectedNode.value = node
     }
 
+    fun onSelectNode(node: QuestNode) {
+        _selectedNode.value = node
+    }
+
     fun dismissNodeDialog() {
         _selectedNode.value = null
     }
@@ -110,14 +120,13 @@ class QuestPathViewModel(
         _selectedChapter.value = chapter
     }
 
+    fun onSelectChapter(chapter: Int) {
+        _selectedChapter.value = chapter
+    }
+
     fun claimNodeReward(node: QuestNode) {
-        if (!node.isCriteriaMet) return
         viewModelScope.launch {
-            gamificationRepository.completeQuestNode(
-                nodeId = node.id,
-                xpReward = node.rewardXp,
-                gemsReward = node.rewardGems
-            )
+            gamificationRepository.completeQuestNode(node.id, node.rewardXp, node.rewardGems)
             _selectedNode.value = null
         }
     }
@@ -128,23 +137,23 @@ class QuestPathViewModel(
         goals: List<Goal>,
         txs: List<Transaction>,
         categories: List<CategoryHierarchy>,
-        simpleFinConfig: SimpleFinConfigEntity?
+        simpleFinConfig: SimpleFinConfigEntity?,
+        rules: List<Rule>
     ): List<QuestNode> {
-        val completedIds = gState.completedNodeIds
+        val completedIds = gState.completedNodeIds.toSet()
+        val nodes = mutableListOf<QuestNode>()
         val today = LocalDate.now()
 
-        val nodes = mutableListOf<QuestNode>()
-
         // ==========================================
-        // CHAPTER 1: APP SETUP & FINANCIAL FOUNDATIONS
+        // CHAPTER 1: FINANCIAL FOUNDATIONS (SETUP QUESTS)
         // ==========================================
 
-        // 1.1 SimpleFIN Bridge Link
+        // 1.1 SimpleFIN Bridge Setup
         val hasSimpleFin = simpleFinConfig?.accessUrlConfigured == true
         val c1_1 = QuestNode(
             id = "node_c1_simplefin",
-            title = "Connect Bank Bridge",
-            subtitle = "Link your bank accounts via SimpleFIN Bridge",
+            title = "Bank Bridge Link",
+            subtitle = "Connect your bank via SimpleFIN setup token",
             chapter = 1,
             chapterTitle = "Chapter 1: Financial Foundations",
             weekNumber = 1,
@@ -351,27 +360,27 @@ class QuestPathViewModel(
         )
         nodes.add(c2_4)
 
-        // 2.5 Amazon AI Scanner Chest
-        val amazonMatchesCount = txs.count { it.notes.contains("Amazon Items:", ignoreCase = true) || it.splits.isNotEmpty() }
+        // 2.5 Auto-Rule Master Chest
+        val rulesCount = rules.size
         val c2_5_unlocked = completedIds.contains("node_c2_streak")
-        val c2_5_met = amazonMatchesCount >= 1
+        val c2_5_met = rulesCount >= 2
         val c2_5 = QuestNode(
-            id = "node_c2_amazon_chest",
-            title = "Amazon AI Scanner Chest",
-            subtitle = "Itemize an Amazon purchase using Live AI Scan",
+            id = "node_c2_rules_chest",
+            title = "Auto-Rule Master Chest",
+            subtitle = "Create at least 2 Auto-Categorization Rules",
             chapter = 2,
             chapterTitle = "Chapter 2: The Reviewer's Journey",
             weekNumber = 2,
-            nodeType = QuestNodeType.SAVINGS_CHEST,
-            progressText = if (c2_5_met) "✅ Amazon itemized!" else "0 / 1 Amazon orders itemized",
-            progressPercent = if (c2_5_met) 1f else 0f,
+            nodeType = QuestNodeType.AUTO_RULES,
+            progressText = "$rulesCount / 2 Auto-Rules Configured",
+            progressPercent = (rulesCount.toFloat() / 2f).coerceIn(0f, 1f),
             isCriteriaMet = c2_5_met,
-            requirementDescription = "Use the ⚡ Live AI Scan tool to capture and itemize Amazon orders.",
+            requirementDescription = "Set up at least 2 auto-categorization rules in Budgets > Rules or in the Daily Habit Review queue.",
             rewardXp = 150,
             rewardGems = 35,
             rewardEquipmentId = "relic_ring",
             isUnlocked = c2_5_unlocked,
-            isCompleted = completedIds.contains("node_c2_amazon_chest")
+            isCompleted = completedIds.contains("node_c2_rules_chest")
         )
         nodes.add(c2_5)
 
@@ -397,7 +406,7 @@ class QuestPathViewModel(
         val totalSavedInGoals = goals.sumOf { it.currentAmount }
 
         // 3.1 Zero-Spend Day
-        val c3_1_unlocked = completedIds.contains("node_c2_amazon_chest")
+        val c3_1_unlocked = completedIds.contains("node_c2_rules_chest")
         val c3_1_met = todayDiscretionarySpend == 0.0
         val c3_1 = QuestNode(
             id = "node_c3_zero_spend",
@@ -451,68 +460,66 @@ class QuestPathViewModel(
             chapterTitle = "Chapter 3: Budget Mastery & Boss Battles",
             weekNumber = 3,
             nodeType = QuestNodeType.WEEKLY_BUDGET,
-            progressText = "${CurrencyFormatter.format(subSpend)} / \$60.00 Subscriptions",
-            progressPercent = if (subSpend <= 60.0) 1f else 0.5f,
+            progressText = "${CurrencyFormatter.format(subSpend)} / \$60.00 Limit",
+            progressPercent = (subSpend.toFloat() / 60f).coerceIn(0f, 1f),
             isCriteriaMet = c3_3_met,
-            requirementDescription = "Audit your recurring monthly subscriptions to keep them below \$60.00.",
-            rewardXp = 140,
+            requirementDescription = "Audit recurring streaming/software bills and keep under \$60.00.",
+            rewardXp = 130,
             rewardGems = 30,
             isUnlocked = c3_3_unlocked,
             isCompleted = completedIds.contains("node_c3_subscriptions")
         )
         nodes.add(c3_3)
 
-        // 3.4 The Dining Dragon (Boss Battle)
+        // 3.4 Goal Vault Stash
         val c3_4_unlocked = completedIds.contains("node_c3_subscriptions")
-        val diningMaxHp = 350.0
-        val remainingDiningHp = max(0.0, diningMaxHp - diningSpend)
-        val c3_4_met = diningSpend < diningMaxHp && diningSpend > 0
+        val c3_4_met = totalSavedInGoals >= 250.0
         val c3_4 = QuestNode(
-            id = "node_c3_boss_dining",
-            title = "The Dining Dragon (Boss Battle)",
-            subtitle = "Keep monthly dining out under \$350.00",
+            id = "node_c3_goal_stash",
+            title = "Vault Accelerator",
+            subtitle = "Accumulate at least \$250.00 saved towards goals",
             chapter = 3,
             chapterTitle = "Chapter 3: Budget Mastery & Boss Battles",
             weekNumber = 3,
-            nodeType = QuestNodeType.BOSS_BATTLE,
-            bossName = "Ignis the Takeout Wyrm",
-            bossMaxHp = diningMaxHp,
-            bossCurrentHp = remainingDiningHp,
-            progressText = "${CurrencyFormatter.format(diningSpend)} / \$350.00 Max Limit (${remainingDiningHp.toInt()} HP remaining)",
-            progressPercent = ((diningMaxHp - diningSpend) / diningMaxHp).toFloat().coerceIn(0f, 1f),
+            nodeType = QuestNodeType.SAVINGS_CHEST,
+            progressText = "${CurrencyFormatter.format(totalSavedInGoals)} / \$250.00 Saved",
+            progressPercent = (totalSavedInGoals.toFloat() / 250f).coerceIn(0f, 1f),
             isCriteriaMet = c3_4_met,
-            requirementDescription = "Defeat the Dining Dragon by keeping your total restaurant and takeout spend under \$350.00!",
-            rewardXp = 300,
-            rewardGems = 50,
-            rewardEquipmentId = "pet_piggy",
+            requirementDescription = "Log deposits to your savings goals totaling at least \$250.00.",
+            rewardXp = 150,
+            rewardGems = 35,
+            rewardEquipmentId = "pet_dragon",
             isUnlocked = c3_4_unlocked,
-            isCompleted = completedIds.contains("node_c3_boss_dining")
+            isCompleted = completedIds.contains("node_c3_goal_stash")
         )
         nodes.add(c3_4)
 
-        // 3.5 The Compound Colossus (Final Boss)
-        val c3_5_unlocked = completedIds.contains("node_c3_boss_dining")
-        val c3_5_met = totalSavedInGoals >= 250.0
+        // 3.5 Boss Battle: The Compound Colossus
+        val diningBudgetLimit = 250.0
+        val bossMaxHp = diningBudgetLimit
+        val bossCurrentHp = max(0.0, diningBudgetLimit - diningSpend)
+        val bossDamageDealt = diningSpend
+        val c3_5_unlocked = completedIds.contains("node_c3_goal_stash")
+        val c3_5_met = diningSpend <= diningBudgetLimit && diningSpend > 0
         val c3_5 = QuestNode(
-            id = "node_c3_boss_colossus",
-            title = "The Compound Colossus (Final Boss)",
-            subtitle = "Build \$250.00+ total in your wealth vault",
+            id = "node_c3_boss",
+            title = "BOSS: The Compound Colossus",
+            subtitle = "Defeat the monster by staying under your \$250 Dining budget!",
             chapter = 3,
             chapterTitle = "Chapter 3: Budget Mastery & Boss Battles",
             weekNumber = 3,
             nodeType = QuestNodeType.BOSS_BATTLE,
-            bossName = "Chronos the Inflation Titan",
-            bossMaxHp = 250.0,
-            bossCurrentHp = max(0.0, 250.0 - totalSavedInGoals),
-            progressText = "${CurrencyFormatter.format(totalSavedInGoals)} / \$250.00 Saved",
-            progressPercent = (totalSavedInGoals.toFloat() / 250f).coerceIn(0f, 1f),
+            progressText = if (c3_5_met) "⚔️ Boss Defeated! (\$${diningSpend.toInt()}/\$250 spent)" else "Boss HP: \$${bossCurrentHp.toInt()} / \$${bossMaxHp.toInt()}",
+            progressPercent = ((diningBudgetLimit - diningSpend).toFloat() / diningBudgetLimit.toFloat()).coerceIn(0f, 1f),
             isCriteriaMet = c3_5_met,
-            requirementDescription = "Slay Chronos by locking away \$250.00 in your financial savings goals.",
-            rewardXp = 500,
+            requirementDescription = "Survive the month with less than \$250 dining spend to slay the Compound Colossus.",
+            rewardXp = 300,
             rewardGems = 100,
-            rewardEquipmentId = "head_crown",
+            bossName = "The Compound Colossus 🐉",
+            bossMaxHp = bossMaxHp,
+            bossCurrentHp = bossCurrentHp,
             isUnlocked = c3_5_unlocked,
-            isCompleted = completedIds.contains("node_c3_boss_colossus")
+            isCompleted = completedIds.contains("node_c3_boss")
         )
         nodes.add(c3_5)
 

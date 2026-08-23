@@ -94,7 +94,7 @@ fun QuestPathScreen(
                         QuestNodeType.SETUP_GOALS -> "🎯"
                         QuestNodeType.SPLIT_TRANSACTION -> "✂️"
                         QuestNodeType.NOTE_BONUS -> "💬"
-                        QuestNodeType.AMAZON_MATCH -> "📦"
+                        QuestNodeType.AUTO_RULES -> "⚡"
                         QuestNodeType.ZERO_SPEND -> "🛡️"
                         QuestNodeType.INBOX_ZERO -> "📬"
                         else -> "⭐"
@@ -196,10 +196,9 @@ fun QuestPathScreen(
                 } else if (node.isUnlocked) {
                     val destinationRoute = when (node.nodeType) {
                         QuestNodeType.SETUP_SIMPLEFIN -> com.randallengineering.finances.ui.navigation.Screen.Settings.route
-                        QuestNodeType.SETUP_CATEGORIES, QuestNodeType.SETUP_SUBCATEGORIES, QuestNodeType.SETUP_BUDGETS -> com.randallengineering.finances.ui.navigation.Screen.Budgets.route
+                        QuestNodeType.SETUP_CATEGORIES, QuestNodeType.SETUP_SUBCATEGORIES, QuestNodeType.SETUP_BUDGETS, QuestNodeType.AUTO_RULES -> com.randallengineering.finances.ui.navigation.Screen.Budgets.route
                         QuestNodeType.SETUP_GOALS, QuestNodeType.SAVINGS_CHEST -> com.randallengineering.finances.ui.navigation.Screen.Goals.route
                         QuestNodeType.INBOX_ZERO, QuestNodeType.NOTE_BONUS, QuestNodeType.SPLIT_TRANSACTION -> com.randallengineering.finances.ui.navigation.Screen.ActionQueue.route
-                        QuestNodeType.AMAZON_MATCH -> com.randallengineering.finances.ui.navigation.Screen.Transactions.route
                         else -> com.randallengineering.finances.ui.navigation.Screen.Budgets.route
                     }
 
@@ -207,9 +206,9 @@ fun QuestPathScreen(
                         QuestNodeType.SETUP_SIMPLEFIN -> "🚀 Go to Settings ➔"
                         QuestNodeType.SETUP_CATEGORIES, QuestNodeType.SETUP_SUBCATEGORIES -> "🚀 Go to Categories ➔"
                         QuestNodeType.SETUP_BUDGETS -> "🚀 Go to Budgets ➔"
+                        QuestNodeType.AUTO_RULES -> "🚀 Go to Rules ➔"
                         QuestNodeType.SETUP_GOALS, QuestNodeType.SAVINGS_CHEST -> "🚀 Go to Goals ➔"
                         QuestNodeType.INBOX_ZERO, QuestNodeType.NOTE_BONUS, QuestNodeType.SPLIT_TRANSACTION -> "🚀 Go to Queue ➔"
-                        QuestNodeType.AMAZON_MATCH -> "🚀 Go to Scan ➔"
                         else -> "🚀 Jump to Quest ➔"
                     }
 

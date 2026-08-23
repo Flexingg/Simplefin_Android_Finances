@@ -53,7 +53,7 @@ enum class QuestNodeType {
     BOSS_BATTLE,
     FINANCIAL_QUIZ,
     ZERO_SPEND,
-    AMAZON_MATCH,
+    AUTO_RULES,
     INBOX_ZERO,
     SPLIT_TRANSACTION,
     NOTE_BONUS
