@@ -1,11 +1,12 @@
 package com.randallengineering.finances.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -61,6 +61,7 @@ data class QuickSplitRow(
     var note: String = ""
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DuolingoSplitModal(
     transaction: Transaction,
@@ -93,34 +94,149 @@ fun DuolingoSplitModal(
     }
 
     var selectedRowForCategory by remember { mutableStateOf<Int?>(null) }
+    var selectedCategoryForSub by remember { mutableStateOf<CategoryHierarchy?>(null) }
+    var showAddCustomCategoryDialog by remember { mutableStateOf(false) }
 
     val currentAllocated = splitRows.sumOf { it.amountText.toDoubleOrNull() ?: 0.0 }
     val remaining = totalAmount - currentAllocated
     val isBalanced = abs(remaining) < 0.05
     val noteBonusCount = splitRows.count { it.note.isNotBlank() }
 
-    // Category Selector Popup for Row
-    if (selectedRowForCategory != null) {
+    // 1. Subcategory Selection Dialog for Split Line
+    if (selectedCategoryForSub != null && selectedRowForCategory != null) {
+        val cat = selectedCategoryForSub!!
         val rowIndex = selectedRowForCategory!!
+
+        AlertDialog(
+            onDismissRequest = { selectedCategoryForSub = null },
+            title = { Text("Select Subcategory for ${cat.mainCategory}", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Option to choose main category only
+                    DuolingoPressableButton(
+                        onClick = {
+                            if (rowIndex in splitRows.indices) {
+                                splitRows[rowIndex] = splitRows[rowIndex].copy(
+                                    category = cat.mainCategory,
+                                    subCategory = ""
+                                )
+                            }
+                            selectedCategoryForSub = null
+                            selectedRowForCategory = null
+                        },
+                        backgroundColor = DuoCardDark,
+                        shadowColor = DuoCardShadow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("General / All ${cat.mainCategory}", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (cat.subCategories.isNotEmpty()) {
+                        Text("Specific Subcategories:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            cat.subCategories.forEach { sub ->
+                                DuolingoPressableButton(
+                                    onClick = {
+                                        if (rowIndex in splitRows.indices) {
+                                            splitRows[rowIndex] = splitRows[rowIndex].copy(
+                                                category = cat.mainCategory,
+                                                subCategory = sub
+                                            )
+                                        }
+                                        selectedCategoryForSub = null
+                                        selectedRowForCategory = null
+                                    },
+                                    backgroundColor = DuoGreen,
+                                    shadowColor = DuoGreenDark,
+                                    cornerRadius = 8.dp,
+                                    shadowHeight = 2.dp
+                                ) {
+                                    Text(sub, color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                DuolingoPressableButton(
+                    onClick = { selectedCategoryForSub = null },
+                    backgroundColor = DuoCardDark,
+                    shadowColor = DuoCardShadow,
+                    cornerRadius = 10.dp
+                ) {
+                    Text("Back", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // 2. Full Main Category Selection Modal for Split Line
+    if (selectedRowForCategory != null && selectedCategoryForSub == null) {
+        val rowIndex = selectedRowForCategory!!
+
         AlertDialog(
             onDismissRequest = { selectedRowForCategory = null },
             title = { Text("Choose Category for Split Line #${rowIndex + 1}", fontWeight = FontWeight.Bold) },
             text = {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        Text("Select Main Category or Subcategory:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
                     items(categories.size) { idx ->
                         val cat = categories[idx]
-                        DuolingoPressableButton(
-                            onClick = {
-                                if (rowIndex in splitRows.indices) {
-                                    splitRows[rowIndex] = splitRows[rowIndex].copy(category = cat.mainCategory, subCategory = cat.subCategories.firstOrNull().orEmpty())
-                                }
-                                selectedRowForCategory = null
-                            },
-                            backgroundColor = DuoCardDark,
-                            shadowColor = DuoCardShadow,
-                            modifier = Modifier.fillMaxWidth()
+                        val emoji = getCategoryEmoji(cat.mainCategory)
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(Shapes.medium)
+                                .clickable {
+                                    if (cat.subCategories.isNotEmpty()) {
+                                        selectedCategoryForSub = cat
+                                    } else {
+                                        if (rowIndex in splitRows.indices) {
+                                            splitRows[rowIndex] = splitRows[rowIndex].copy(
+                                                category = cat.mainCategory,
+                                                subCategory = ""
+                                            )
+                                        }
+                                        selectedRowForCategory = null
+                                    }
+                                },
+                            colors = CardDefaults.cardColors(containerColor = DuoCardDark)
                         ) {
-                            Text(cat.mainCategory, color = Color.White, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "$emoji ${cat.mainCategory}",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+
+                                if (cat.subCategories.isNotEmpty()) {
+                                    Text(
+                                        text = "${cat.subCategories.size} subs ➔",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = DuoGreen,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -128,8 +244,8 @@ fun DuolingoSplitModal(
             confirmButton = {
                 DuolingoPressableButton(
                     onClick = { selectedRowForCategory = null },
-                    backgroundColor = DuoRed,
-                    shadowColor = DuoRedDark,
+                    backgroundColor = DuoCardDark,
+                    shadowColor = DuoCardShadow,
                     cornerRadius = 10.dp
                 ) {
                     Text("Cancel", color = Color.White)
@@ -138,6 +254,7 @@ fun DuolingoSplitModal(
         )
     }
 
+    // Main Split Modal
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -167,8 +284,8 @@ fun DuolingoSplitModal(
                         onClick = {
                             val half = totalAmount / 2.0
                             splitRows.clear()
-                            splitRows.add(QuickSplitRow(category = defaultCat, amountText = String.format("%.2f", half)))
-                            splitRows.add(QuickSplitRow(category = "Groceries", amountText = String.format("%.2f", totalAmount - half)))
+                            splitRows.add(QuickSplitRow(category = defaultCat, subCategory = defaultSub, amountText = String.format("%.2f", half)))
+                            splitRows.add(QuickSplitRow(category = "Groceries", subCategory = "", amountText = String.format("%.2f", totalAmount - half)))
                         },
                         backgroundColor = DuoCardDark,
                         shadowColor = DuoCardShadow,
@@ -183,9 +300,9 @@ fun DuolingoSplitModal(
                         onClick = {
                             val third = totalAmount / 3.0
                             splitRows.clear()
-                            splitRows.add(QuickSplitRow(category = defaultCat, amountText = String.format("%.2f", third)))
-                            splitRows.add(QuickSplitRow(category = "Groceries", amountText = String.format("%.2f", third)))
-                            splitRows.add(QuickSplitRow(category = "Shopping", amountText = String.format("%.2f", totalAmount - (third * 2))))
+                            splitRows.add(QuickSplitRow(category = defaultCat, subCategory = defaultSub, amountText = String.format("%.2f", third)))
+                            splitRows.add(QuickSplitRow(category = "Groceries", subCategory = "", amountText = String.format("%.2f", third)))
+                            splitRows.add(QuickSplitRow(category = "Shopping", subCategory = "", amountText = String.format("%.2f", totalAmount - (third * 2))))
                         },
                         backgroundColor = DuoCardDark,
                         shadowColor = DuoCardShadow,
@@ -202,6 +319,9 @@ fun DuolingoSplitModal(
                 // Split Rows List
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     splitRows.forEachIndexed { index, row ->
+                        val emoji = getCategoryEmoji(row.category)
+                        val displayCatLabel = if (row.subCategory.isNotBlank()) "$emoji ${row.category} > ${row.subCategory}" else "$emoji ${row.category}"
+
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -215,7 +335,7 @@ fun DuolingoSplitModal(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // Category Picker Chip
+                                // Category Picker Chip (Tap to pick category & subcategory)
                                 Card(
                                     modifier = Modifier
                                         .weight(1.3f)
@@ -229,7 +349,7 @@ fun DuolingoSplitModal(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = row.category,
+                                            text = displayCatLabel,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.White,
                                             style = MaterialTheme.typography.labelMedium,
@@ -250,24 +370,24 @@ fun DuolingoSplitModal(
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                // Delete Button
+                                // Delete Row
                                 if (splitRows.size > 2) {
                                     IconButton(
                                         onClick = { splitRows.removeAt(index) },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete Row", tint = DuoRed)
                                     }
                                 }
                             }
 
-                            // Optional Note per split row
+                            // Optional Note per Split Line with Note Bonus XP indicator
                             OutlinedTextField(
                                 value = row.note,
                                 onValueChange = { newNote ->
                                     splitRows[index] = row.copy(note = newNote)
                                 },
-                                placeholder = { Text("💬 Note (e.g. Work lunch) +10 XP", style = MaterialTheme.typography.bodySmall) },
+                                placeholder = { Text("💬 Item note (+10 XP bonus!)", style = MaterialTheme.typography.labelSmall) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -275,7 +395,7 @@ fun DuolingoSplitModal(
                     }
                 }
 
-                // Add Split Row Button & Status
+                // Add Custom Line & Auto Balance Remaining
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -283,31 +403,68 @@ fun DuolingoSplitModal(
                 ) {
                     DuolingoPressableButton(
                         onClick = {
-                            val autoAmount = if (remaining > 0) String.format("%.2f", remaining) else "0.00"
-                            splitRows.add(QuickSplitRow(category = "Shopping", amountText = autoAmount))
+                            val rem = if (remaining > 0) String.format("%.2f", remaining) else "0.00"
+                            splitRows.add(QuickSplitRow(category = "Shopping", subCategory = "", amountText = rem))
                         },
-                        backgroundColor = DuoBlue,
-                        shadowColor = DuoBlueDark,
-                        cornerRadius = 10.dp,
-                        shadowHeight = 3.dp
+                        backgroundColor = DuoCardDark,
+                        shadowColor = DuoCardShadow,
+                        cornerRadius = 8.dp,
+                        shadowHeight = 2.dp
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Add Line", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
 
-                    // Balance Status Badge
-                    Card(
-                        shape = Shapes.small,
-                        colors = CardDefaults.cardColors(containerColor = if (isBalanced) DuoGreen.copy(alpha = 0.2f) else DuoRed.copy(alpha = 0.2f))
+                    if (remaining > 0.01) {
+                        DuolingoPressableButton(
+                            onClick = {
+                                if (splitRows.isNotEmpty()) {
+                                    val last = splitRows.last()
+                                    val lastVal = last.amountText.toDoubleOrNull() ?: 0.0
+                                    splitRows[splitRows.lastIndex] = last.copy(amountText = String.format("%.2f", lastVal + remaining))
+                                }
+                            },
+                            backgroundColor = DuoGold,
+                            shadowColor = DuoGoldDark,
+                            cornerRadius = 8.dp,
+                            shadowHeight = 2.dp
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Balance +${CurrencyFormatter.format(remaining)}", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+
+                // Balance Status Bar
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = Shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isBalanced) DuoGreen.copy(alpha = 0.15f) else DuoRed.copy(alpha = 0.15f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isBalanced) "✅ Exact Match!" else if (remaining > 0) "Remaining: ${CurrencyFormatter.format(remaining)}" else "Over by: ${CurrencyFormatter.format(abs(remaining))}",
+                            text = if (isBalanced) "✅ Fully Balanced ($${String.format("%.2f", currentAllocated)})" else "Remaining: ${CurrencyFormatter.format(remaining)}",
                             fontWeight = FontWeight.Bold,
                             color = if (isBalanced) DuoGreenDark else DuoRedDark,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            style = MaterialTheme.typography.labelSmall
                         )
+
+                        if (noteBonusCount > 0) {
+                            Text(
+                                text = "+${noteBonusCount * 10} XP Note Bonus! 🎁",
+                                fontWeight = FontWeight.Bold,
+                                color = DuoGoldDark,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                 }
             }
@@ -316,33 +473,59 @@ fun DuolingoSplitModal(
             DuolingoPressableButton(
                 onClick = {
                     if (isBalanced) {
-                        val validSplits = splitRows.mapNotNull { row ->
-                            val amt = row.amountText.toDoubleOrNull() ?: 0.0
-                            if (amt > 0) {
+                        val splits = splitRows.mapNotNull { row ->
+                            val amount = row.amountText.toDoubleOrNull() ?: 0.0
+                            if (amount > 0) {
                                 TransactionSplit(
                                     id = row.id,
                                     category = row.category,
                                     subCategory = row.subCategory,
-                                    amount = amt,
-                                    notes = row.note.trim()
+                                    amount = amount,
+                                    notes = row.note
                                 )
                             } else null
                         }
-                        if (validSplits.isNotEmpty()) {
-                            onConfirmSplits(validSplits)
+                        if (splits.isNotEmpty()) {
+                            onConfirmSplits(splits)
                         }
                     }
                 },
                 enabled = isBalanced,
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
-                modifier = Modifier.fillMaxWidth()
+                backgroundColor = if (isBalanced) DuoGreen else Color.Gray,
+                shadowColor = if (isBalanced) DuoGreenDark else Color.DarkGray,
+                cornerRadius = 10.dp
             ) {
-                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(6.dp))
-                val totalBonusText = if (noteBonusCount > 0) "+${35 + (noteBonusCount * 10)} XP (+${noteBonusCount * 10} Notes Bonus!)" else "+35 XP"
-                Text("Confirm Split ($totalBonusText)", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Confirm Split (+35 XP) 🎉", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Cancel", color = Color.White)
             }
         }
     )
+}
+
+private fun getCategoryEmoji(name: String): String {
+    val lower = name.lowercase()
+    return when {
+        lower.contains("dining") || lower.contains("food") || lower.contains("restaurant") -> "🍔"
+        lower.contains("grocer") -> "🛒"
+        lower.contains("auto") || lower.contains("gas") || lower.contains("transport") -> "🚗"
+        lower.contains("util") || lower.contains("electric") || lower.contains("bill") -> "💡"
+        lower.contains("shop") || lower.contains("retail") || lower.contains("amazon") -> "🛍️"
+        lower.contains("entertain") || lower.contains("fun") || lower.contains("game") -> "🍿"
+        lower.contains("health") || lower.contains("medic") || lower.contains("wellness") -> "🏥"
+        lower.contains("income") || lower.contains("salary") || lower.contains("deposit") -> "💼"
+        lower.contains("subscript") || lower.contains("netflix") || lower.contains("stream") -> "📱"
+        lower.contains("home") || lower.contains("house") || lower.contains("rent") || lower.contains("mortgage") -> "🏠"
+        lower.contains("travel") || lower.contains("hotel") || lower.contains("flight") -> "✈️"
+        lower.contains("kid") || lower.contains("baby") || lower.contains("toy") -> "🧸"
+        else -> "🏷️"
+    }
 }
