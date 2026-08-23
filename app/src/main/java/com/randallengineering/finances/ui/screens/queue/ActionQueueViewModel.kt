@@ -3,10 +3,10 @@ package com.randallengineering.finances.ui.screens.queue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.data.repository.CategoryRepository
 import com.randallengineering.finances.data.repository.GamificationRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
-import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.model.TransactionSplit
@@ -93,21 +93,36 @@ class ActionQueueViewModel(
         initialValue = ActionQueueUiState()
     )
 
-    fun confirmCategory(tx: Transaction) {
+    fun confirmCategory(tx: Transaction, note: String = "") {
         viewModelScope.launch {
             val combo = _combo.value
-            val gainedXp = gamificationRepository.addXp(15 * combo, tx.category)
+            val hasNoteBonus = note.isNotBlank()
+            val baseReward = (15 * combo) + (if (hasNoteBonus) 10 else 0)
+            
+            if (hasNoteBonus && note != tx.notes) {
+                transactionRepository.saveTransaction(tx.copy(notes = note.trim()))
+            }
+            
+            val gainedXp = gamificationRepository.addXp(baseReward, tx.category)
             _sessionXp.value += gainedXp
             _combo.value = (combo + 1).coerceAtMost(5)
             _currentIndex.value += 1
         }
     }
 
-    fun editCategory(tx: Transaction, newCategory: String, newSubCategory: String) {
+    fun editCategory(tx: Transaction, newCategory: String, newSubCategory: String, note: String = "") {
         viewModelScope.launch {
-            val updated = tx.copy(category = newCategory, subCategory = newSubCategory)
+            val hasNoteBonus = note.isNotBlank()
+            val baseReward = 10 + (if (hasNoteBonus) 10 else 0)
+            
+            val updated = tx.copy(
+                category = newCategory,
+                subCategory = newSubCategory,
+                notes = if (hasNoteBonus) note.trim() else tx.notes
+            )
             transactionRepository.saveTransaction(updated)
-            val gainedXp = gamificationRepository.addXp(10, newCategory)
+            
+            val gainedXp = gamificationRepository.addXp(baseReward, newCategory)
             _sessionXp.value += gainedXp
             _currentIndex.value += 1
         }
@@ -117,7 +132,12 @@ class ActionQueueViewModel(
         viewModelScope.launch {
             val primaryCat = splits.firstOrNull()?.category ?: tx.category
             val primarySub = splits.firstOrNull()?.subCategory ?: tx.subCategory
-            val notesSummary = splits.joinToString(", ") { "${it.category} (${CurrencyFormatter.format(it.amount)})" }
+            val notesSummary = splits.joinToString(", ") { 
+                "${it.category}: ${CurrencyFormatter.format(it.amount)}${if (it.notes.isNotBlank()) " (${it.notes})" else ""}" 
+            }
+
+            val noteBonusCount = splits.count { it.notes.isNotBlank() }
+            val noteBonusXp = noteBonusCount * 10
 
             val updated = tx.copy(
                 category = primaryCat,
@@ -128,7 +148,7 @@ class ActionQueueViewModel(
             transactionRepository.saveTransaction(updated)
 
             val combo = _combo.value
-            val gainedXp = gamificationRepository.addXp(35 * combo, primaryCat)
+            val gainedXp = gamificationRepository.addXp((35 * combo) + noteBonusXp, primaryCat)
             _sessionXp.value += gainedXp
             _combo.value = (combo + 1).coerceAtMost(5)
             _currentIndex.value += 1

@@ -84,6 +84,7 @@ fun ActionQueueScreen(
     val currentTx = uiState.currentTransaction
 
     val isUncategorized = currentTx?.category.isNullOrBlank() || currentTx?.category.equals("Uncategorized", ignoreCase = true)
+    var txNote by remember(currentTx?.id) { mutableStateOf(currentTx?.notes.orEmpty()) }
     var isExpandedAllCategories by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var selectedCategoryForSub by remember { mutableStateOf<CategoryHierarchy?>(null) }
@@ -303,6 +304,15 @@ fun ActionQueueScreen(
 
                         HorizontalDivider()
 
+                        // Quick Note Input for Bonus XP
+                        OutlinedTextField(
+                            value = txNote,
+                            onValueChange = { txNote = it },
+                            placeholder = { Text("💬 Add a quick note (+10 XP bonus!)", style = MaterialTheme.typography.bodySmall) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         // Current Category Badge & Quick Split Trigger
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -384,7 +394,7 @@ fun ActionQueueScreen(
                                     if (cat1.subCategories.isNotEmpty()) {
                                         selectedCategoryForSub = cat1
                                     } else {
-                                        viewModel.editCategory(currentTx, cat1.mainCategory, "")
+                                        viewModel.editCategory(currentTx, cat1.mainCategory, "", txNote)
                                     }
                                 },
                                 backgroundColor = if (isSelected1) DuoGreen else DuoCardDark,
@@ -411,7 +421,7 @@ fun ActionQueueScreen(
                                         if (cat2.subCategories.isNotEmpty()) {
                                             selectedCategoryForSub = cat2
                                         } else {
-                                            viewModel.editCategory(currentTx, cat2.mainCategory, "")
+                                            viewModel.editCategory(currentTx, cat2.mainCategory, "", txNote)
                                         }
                                     },
                                     backgroundColor = if (isSelected2) DuoGreen else DuoCardDark,
@@ -573,8 +583,12 @@ fun ActionQueueScreen(
 
                 // Bottom Confirmation Button (Only enabled if categorized!)
                 Spacer(Modifier.height(4.dp))
+                val hasNote = txNote.isNotBlank()
+                val totalConfirmXp = (15 * uiState.comboMultiplier) + (if (hasNote) 10 else 0)
+                val bonusNoteText = if (hasNote) " (+10 XP Note Bonus!)" else ""
+
                 DuolingoPressableButton(
-                    onClick = { viewModel.confirmCategory(currentTx) },
+                    onClick = { viewModel.confirmCategory(currentTx, txNote) },
                     enabled = !isUncategorized,
                     backgroundColor = DuoGreen,
                     shadowColor = DuoGreenDark,
@@ -585,7 +599,7 @@ fun ActionQueueScreen(
                     } else {
                         Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
-                        Text("Confirm (${currentTx.category}) +${15 * uiState.comboMultiplier} XP", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Confirm (${currentTx.category}) +${totalConfirmXp} XP$bonusNoteText", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }

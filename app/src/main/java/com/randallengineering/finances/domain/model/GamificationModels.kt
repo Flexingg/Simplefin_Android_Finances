@@ -42,6 +42,11 @@ data class EquipmentItem(
 
 @Serializable
 enum class QuestNodeType {
+    SETUP_SIMPLEFIN,
+    SETUP_CATEGORIES,
+    SETUP_SUBCATEGORIES,
+    SETUP_BUDGETS,
+    SETUP_GOALS,
     DAILY_ADHERENCE,
     WEEKLY_BUDGET,
     SAVINGS_CHEST,
@@ -49,7 +54,9 @@ enum class QuestNodeType {
     FINANCIAL_QUIZ,
     ZERO_SPEND,
     AMAZON_MATCH,
-    INBOX_ZERO
+    INBOX_ZERO,
+    SPLIT_TRANSACTION,
+    NOTE_BONUS
 }
 
 @Serializable
@@ -57,7 +64,9 @@ data class QuestNode(
     val id: String,
     val title: String,
     val subtitle: String,
-    val weekNumber: Int,
+    val chapter: Int = 1,
+    val chapterTitle: String = "Chapter 1: Financial Foundations",
+    val weekNumber: Int = 1,
     val nodeType: QuestNodeType,
     val targetAmount: Double = 0.0,
     val currentAmount: Double = 0.0,
@@ -91,7 +100,7 @@ data class GamificationState(
     val equippedRelicId: String? = "relic_ring",
     val equippedPetId: String? = "pet_piggy",
     val inventoryGearIds: List<String> = listOf("head_visor", "chest_shield", "relic_ring", "pet_piggy", "head_crown", "chest_cloak"),
-    val completedNodeIds: List<String> = listOf("node_w1_d1")
+    val completedNodeIds: List<String> = listOf()
 ) {
     val levelTitle: String
         get() = when (level) {

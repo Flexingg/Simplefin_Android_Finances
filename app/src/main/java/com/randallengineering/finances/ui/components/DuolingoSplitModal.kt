@@ -18,9 +18,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -57,7 +57,8 @@ data class QuickSplitRow(
     val id: String = UUID.randomUUID().toString(),
     var category: String = "Dining",
     var subCategory: String = "",
-    var amountText: String = ""
+    var amountText: String = "",
+    var note: String = ""
 )
 
 @Composable
@@ -79,7 +80,8 @@ fun DuolingoSplitModal(
                         id = it.id,
                         category = it.category,
                         subCategory = it.subCategory,
-                        amountText = String.format("%.2f", it.amount)
+                        amountText = String.format("%.2f", it.amount),
+                        note = it.notes
                     )
                 })
             } else {
@@ -95,6 +97,7 @@ fun DuolingoSplitModal(
     val currentAllocated = splitRows.sumOf { it.amountText.toDoubleOrNull() ?: 0.0 }
     val remaining = totalAmount - currentAllocated
     val isBalanced = abs(remaining) < 0.05
+    val noteBonusCount = splitRows.count { it.note.isNotBlank() }
 
     // Category Selector Popup for Row
     if (selectedRowForCategory != null) {
@@ -144,7 +147,7 @@ fun DuolingoSplitModal(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CallSplit, contentDescription = null, tint = DuoGreen, modifier = Modifier.size(24.dp))
+                    Icon(Icons.AutoMirrored.Filled.CallSplit, contentDescription = null, tint = DuoGreen, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Quick Split (${CurrencyFormatter.format(totalAmount)})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 }
@@ -199,60 +202,80 @@ fun DuolingoSplitModal(
                 // Split Rows List
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     splitRows.forEachIndexed { index, row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(Shapes.small)
+                                .background(DuoCardDark.copy(alpha = 0.5f))
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // Category Picker Chip
-                            Card(
-                                modifier = Modifier
-                                    .weight(1.3f)
-                                    .clip(Shapes.small)
-                                    .clickable { selectedRowForCategory = index },
-                                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                // Category Picker Chip
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1.3f)
+                                        .clip(Shapes.small)
+                                        .clickable { selectedRowForCategory = index },
+                                    colors = CardDefaults.cardColors(containerColor = DuoCardDark)
                                 ) {
-                                    Text(
-                                        text = row.category,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = row.category,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+
+                                // Amount Field
+                                OutlinedTextField(
+                                    value = row.amountText,
+                                    onValueChange = { newText ->
+                                        splitRows[index] = row.copy(amountText = newText)
+                                    },
+                                    prefix = { Text("$") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // Delete Button
+                                if (splitRows.size > 2) {
+                                    IconButton(
+                                        onClick = { splitRows.removeAt(index) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                             }
 
-                            // Amount Field
+                            // Optional Note per split row
                             OutlinedTextField(
-                                value = row.amountText,
-                                onValueChange = { newText ->
-                                    splitRows[index] = row.copy(amountText = newText)
+                                value = row.note,
+                                onValueChange = { newNote ->
+                                    splitRows[index] = row.copy(note = newNote)
                                 },
-                                prefix = { Text("$") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                placeholder = { Text("💬 Note (e.g. Work lunch) +10 XP", style = MaterialTheme.typography.bodySmall) },
                                 singleLine = true,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth()
                             )
-
-                            // Delete Button
-                            if (splitRows.size > 2) {
-                                IconButton(
-                                    onClick = { splitRows.removeAt(index) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(18.dp))
-                                }
-                            }
                         }
                     }
                 }
 
-                // Add Split Row Button
+                // Add Split Row Button & Status
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -301,7 +324,7 @@ fun DuolingoSplitModal(
                                     category = row.category,
                                     subCategory = row.subCategory,
                                     amount = amt,
-                                    notes = "${row.category} Split"
+                                    notes = row.note.trim()
                                 )
                             } else null
                         }
@@ -317,7 +340,8 @@ fun DuolingoSplitModal(
             ) {
                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(6.dp))
-                Text("Confirm Split & Earn +35 XP", color = Color.White, fontWeight = FontWeight.Bold)
+                val totalBonusText = if (noteBonusCount > 0) "+${35 + (noteBonusCount * 10)} XP (+${noteBonusCount * 10} Notes Bonus!)" else "+35 XP"
+                Text("Confirm Split ($totalBonusText)", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     )

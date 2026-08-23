@@ -38,6 +38,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -54,6 +56,8 @@ import com.randallengineering.finances.domain.model.QuestNode
 import com.randallengineering.finances.domain.model.QuestNodeType
 import com.randallengineering.finances.ui.components.DuoBlue
 import com.randallengineering.finances.ui.components.DuoBlueDark
+import com.randallengineering.finances.ui.components.DuoCardDark
+import com.randallengineering.finances.ui.components.DuoCardShadow
 import com.randallengineering.finances.ui.components.DuoGold
 import com.randallengineering.finances.ui.components.DuoGoldDark
 import com.randallengineering.finances.ui.components.DuoGreen
@@ -82,6 +86,13 @@ fun QuestPathScreen(
                     val emoji = when (node.nodeType) {
                         QuestNodeType.SAVINGS_CHEST -> "🎁"
                         QuestNodeType.BOSS_BATTLE -> "👾"
+                        QuestNodeType.SETUP_SIMPLEFIN -> "🏦"
+                        QuestNodeType.SETUP_CATEGORIES -> "🗂️"
+                        QuestNodeType.SETUP_SUBCATEGORIES -> "📑"
+                        QuestNodeType.SETUP_BUDGETS -> "📊"
+                        QuestNodeType.SETUP_GOALS -> "🎯"
+                        QuestNodeType.SPLIT_TRANSACTION -> "✂️"
+                        QuestNodeType.NOTE_BONUS -> "💬"
                         QuestNodeType.AMAZON_MATCH -> "📦"
                         QuestNodeType.ZERO_SPEND -> "🛡️"
                         QuestNodeType.INBOX_ZERO -> "📬"
@@ -123,7 +134,7 @@ fun QuestPathScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Live Progress:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                                Text("Live Status:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                                 Text(node.progressText, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, color = if (node.isCriteriaMet) DuoGreenDark else MaterialTheme.colorScheme.primary)
                             }
                             LinearProgressIndicator(
@@ -204,6 +215,14 @@ fun QuestPathScreen(
         )
     }
 
+    val chapters = listOf(
+        Pair(1, "1. Foundations"),
+        Pair(2, "2. Review Habits"),
+        Pair(3, "3. Budget Bosses")
+    )
+
+    val currentChapterNodes = uiState.nodes.filter { it.chapter == uiState.selectedChapter }
+
     Scaffold(
         topBar = {
             GamificationHud(onQueueClick = onNavigateToQueue)
@@ -216,14 +235,44 @@ fun QuestPathScreen(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Chapter Selection Tabs
+            item {
+                ScrollableTabRow(
+                    selectedTabIndex = (uiState.selectedChapter - 1).coerceIn(0, 2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    edgePadding = 0.dp
+                ) {
+                    chapters.forEach { (chapNum, title) ->
+                        Tab(
+                            selected = uiState.selectedChapter == chapNum,
+                            onClick = { viewModel.selectChapter(chapNum) },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontWeight = if (uiState.selectedChapter == chapNum) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+
             // Chapter Header Banner
             item {
+                val (bannerBg, bannerShadow, chapTitle, chapSubtitle) = when (uiState.selectedChapter) {
+                    1 -> Quad(DuoBlue, DuoBlueDark, "CHAPTER 1: FOUNDATIONS", "Set up your SimpleFIN link, 6 main categories, 25 subcategories, and first budget!")
+                    2 -> Quad(DuoGreen, DuoGreenDark, "CHAPTER 2: THE REVIEWER", "Categorize daily transactions, use Quick Split, attach notes, and maintain your streak!")
+                    else -> Quad(DuoRed, DuoRedDark, "CHAPTER 3: BUDGET MASTERY", "Keep weekly spending under limits and defeat Ignis the Takeout Wyrm & Chronos!")
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     shape = Shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = DuoGreen)
+                    colors = CardDefaults.cardColors(containerColor = bannerBg)
                 ) {
                     Column(
                         modifier = Modifier
@@ -236,19 +285,28 @@ fun QuestPathScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("CHAPTER 1", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.8f))
-                                Text("The Frugal Quest", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = Color.White)
+                                Text(chapTitle, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = Color.White.copy(alpha = 0.8f))
+                                Text(
+                                    when (uiState.selectedChapter) {
+                                        1 -> "App Setup & Setup Quests"
+                                        2 -> "Transaction Reviewer"
+                                        else -> "Budget Mastery & Bosses"
+                                    },
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
                             }
                             Icon(Icons.Default.MilitaryTech, contentDescription = null, tint = DuoGold, modifier = Modifier.size(36.dp))
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text("Complete real financial habits to progress down the path and defeat the bosses!", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
+                        Text(chapSubtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
                     }
                 }
             }
 
-            // S-Curve Nodes
-            itemsIndexed(uiState.nodes) { index, node ->
+            // S-Curve Nodes for Current Chapter
+            itemsIndexed(currentChapterNodes) { index, node ->
                 val xOffsetDp = (sin(index * 1.3) * 65.0).dp
 
                 QuestNodeItem(
@@ -258,13 +316,15 @@ fun QuestPathScreen(
                     onClick = { viewModel.selectNode(node) }
                 )
 
-                if (index < uiState.nodes.size - 1) {
+                if (index < currentChapterNodes.size - 1) {
                     Spacer(Modifier.height(18.dp))
                 }
             }
         }
     }
 }
+
+data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
 private fun QuestNodeItem(
@@ -290,7 +350,7 @@ private fun QuestNodeItem(
         node.nodeType == QuestNodeType.BOSS_BATTLE -> Triple(DuoRed, DuoRedDark, Icons.Default.Star)
         node.isUnlocked && node.isCriteriaMet -> Triple(DuoGreen, DuoGreenDark, Icons.Default.AutoAwesome)
         node.isUnlocked -> Triple(DuoBlue, DuoBlueDark, Icons.Default.Star)
-        else -> Triple(Color(0xFFE5E5E5), Color(0xFFC4C4C4), Icons.Default.Lock)
+        else -> Triple(Color(0xFF2A2333), Color(0xFF1A1422), Icons.Default.Lock)
     }
 
     Box(
