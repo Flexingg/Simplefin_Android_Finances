@@ -10,7 +10,8 @@ data class BudgetEntity(
     @DocumentId
     var id: String = "",
     var category: String = "",
-    var categoryType: String = BudgetCategoryType.VARIABLE.name,
+    var subCategory: String = "",
+    var categoryType: String = BudgetCategoryType.FIXED.name,
     var targetAmount: Double = 0.0,
     var incomePercentage: Double? = null,
     var spentAmount: Double = 0.0,
@@ -19,10 +20,11 @@ data class BudgetEntity(
     fun toDomain(): Budget = Budget(
         id = id,
         category = category,
+        subCategory = subCategory,
         categoryType = try {
             BudgetCategoryType.valueOf(categoryType)
         } catch (e: Exception) {
-            BudgetCategoryType.VARIABLE
+            BudgetCategoryType.FIXED
         },
         targetAmount = targetAmount,
         incomePercentage = incomePercentage,
@@ -34,6 +36,7 @@ data class BudgetEntity(
         fun fromDomain(domain: Budget): BudgetEntity = BudgetEntity(
             id = domain.id,
             category = domain.category,
+            subCategory = domain.subCategory,
             categoryType = domain.categoryType.name,
             targetAmount = domain.targetAmount,
             incomePercentage = domain.incomePercentage,
