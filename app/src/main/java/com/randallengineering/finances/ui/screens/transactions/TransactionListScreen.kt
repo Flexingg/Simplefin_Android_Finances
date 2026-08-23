@@ -54,7 +54,6 @@ import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.core.util.DateUtils
 import com.randallengineering.finances.domain.model.Transaction
-import com.randallengineering.finances.ui.components.AmazonOrderDetailsSheet
 import com.randallengineering.finances.ui.components.ExpressiveCard
 import com.randallengineering.finances.ui.components.SplitTransactionDialog
 import org.koin.androidx.compose.koinViewModel
@@ -86,17 +85,6 @@ fun TransactionListScreen(
             onConfirmSplits = { splits ->
                 viewModel.saveTransactionSplits(uiState.selectedTransactionForSplit!!, splits)
             }
-        )
-    }
-
-    // Amazon Order Details Modal Sheet
-    if (uiState.selectedAmazonTransaction != null) {
-        AmazonOrderDetailsSheet(
-            transaction = uiState.selectedAmazonTransaction!!,
-            order = uiState.matchedAmazonOrder,
-            isLoading = uiState.isFetchingAmazonOrder,
-            errorMessage = uiState.amazonErrorMessage,
-            onDismiss = { viewModel.closeAmazonOrderDetails() }
         )
     }
 
@@ -204,10 +192,11 @@ fun TransactionListScreen(
                         items = uiState.filteredTransactions,
                         key = { it.id }
                     ) { transaction ->
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         TransactionItemCard(
                             transaction = transaction,
                             onClick = { onNavigateToDetail(transaction.id) },
-                            onAmazonClick = { viewModel.openAmazonOrderDetails(transaction) }
+                            onAmazonClick = { viewModel.openAmazonOrders(context) }
                         )
                     }
                 }

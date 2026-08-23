@@ -51,7 +51,7 @@ val appModule = module {
     single { StorageRepository(get()) }
     single { CategoryRepository(androidContext(), getOrNull()) }
     single { SimpleFinRepository(androidContext(), get(), getOrNull(), getOrNull()) }
-    single { AmazonRepository(androidContext(), getOrNull(), getOrNull()) }
+    single { AmazonRepository(androidContext()) }
     single { com.randallengineering.finances.data.repository.GamificationRepository(androidContext(), getOrNull()) }
 
     // MCP Tools Suite

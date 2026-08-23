@@ -56,7 +56,6 @@ import com.randallengineering.finances.core.theme.FinanceGreen
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.core.util.DateUtils
-import com.randallengineering.finances.ui.components.AmazonOrderDetailsSheet
 import com.randallengineering.finances.ui.components.CategoryPickerDialog
 import com.randallengineering.finances.ui.components.ExpressiveCard
 import com.randallengineering.finances.ui.components.GenerateRuleFromTransactionDialog
@@ -71,6 +70,7 @@ fun TransactionDetailScreen(
     viewModel: TransactionViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val transaction = remember(uiState.transactions, transactionId) {
         uiState.transactions.find { it.id == transactionId }
     }
@@ -125,17 +125,6 @@ fun TransactionDetailScreen(
             onSaveRule = { rule ->
                 viewModel.saveGeneratedRule(rule)
             }
-        )
-    }
-
-    // Amazon Order Details Modal Sheet
-    if (uiState.selectedAmazonTransaction != null) {
-        AmazonOrderDetailsSheet(
-            transaction = uiState.selectedAmazonTransaction!!,
-            order = uiState.matchedAmazonOrder,
-            isLoading = uiState.isFetchingAmazonOrder,
-            errorMessage = uiState.amazonErrorMessage,
-            onDismiss = { viewModel.closeAmazonOrderDetails() }
         )
     }
 
@@ -203,7 +192,7 @@ fun TransactionDetailScreen(
                     }
                 }
 
-                // Amazon SP-API Order Details Card (Conditional)
+                // Amazon Order Jump Card (Conditional)
                 val isAmazon = transaction.originalDesc.contains("Amazon", ignoreCase = true) ||
                         transaction.payee.contains("Amazon", ignoreCase = true)
 
@@ -219,7 +208,7 @@ fun TransactionDetailScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                 Icon(
                                     Icons.Default.ShoppingBag,
                                     contentDescription = "Amazon",
@@ -235,7 +224,7 @@ fun TransactionDetailScreen(
                                         color = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
                                     Text(
-                                        text = "Match items via Amazon SP-API",
+                                        text = "Jump directly to Amazon order history",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                                     )
@@ -243,14 +232,14 @@ fun TransactionDetailScreen(
                             }
 
                             Button(
-                                onClick = { viewModel.openAmazonOrderDetails(transaction) },
+                                onClick = { viewModel.openAmazonOrders(context) },
                                 shape = Shapes.small,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.onTertiaryContainer,
                                     contentColor = MaterialTheme.colorScheme.tertiaryContainer
                                 )
                             ) {
-                                Text("View Items", fontWeight = FontWeight.Bold)
+                                Text("Jump to Orders ➔", fontWeight = FontWeight.Bold)
                             }
                         }
                     }

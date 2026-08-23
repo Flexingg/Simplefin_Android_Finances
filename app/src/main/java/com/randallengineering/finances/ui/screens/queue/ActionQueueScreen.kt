@@ -349,6 +349,26 @@ fun ActionQueueScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
 
+                        // Amazon Order History Quick Jump (Conditional)
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val isAmazon = currentTx.originalDesc.contains("Amazon", ignoreCase = true) || currentTx.payee.contains("Amazon", ignoreCase = true)
+
+                        if (isAmazon) {
+                            DuolingoPressableButton(
+                                onClick = {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.amazon.com/gp/your-account/order-history"))
+                                    context.startActivity(intent)
+                                },
+                                backgroundColor = DuoGold,
+                                shadowColor = DuoGoldDark,
+                                cornerRadius = 8.dp,
+                                shadowHeight = 2.dp,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("📦 Jump to Amazon Orders ➔", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+
                         // Current Category Badge & Quick Split Trigger
                         Row(
                             modifier = Modifier.fillMaxWidth(),

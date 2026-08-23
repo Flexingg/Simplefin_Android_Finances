@@ -1,5 +1,6 @@
 package com.randallengineering.finances.ui.screens.transactions
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,6 @@ import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.StorageRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.CategoryHierarchy
-import com.randallengineering.finances.domain.model.MatchedAmazonOrder
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.model.TransactionSplit
@@ -35,10 +35,6 @@ data class TransactionsUiState(
     val selectedTransactionForCategoryPicker: Transaction? = null,
     val selectedTransactionForRuleGen: Transaction? = null,
     val isUploadingReceipt: Boolean = false,
-    val selectedAmazonTransaction: Transaction? = null,
-    val matchedAmazonOrder: MatchedAmazonOrder? = null,
-    val isFetchingAmazonOrder: Boolean = false,
-    val amazonErrorMessage: String? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null
 )
@@ -67,29 +63,25 @@ class TransactionViewModel(
                 ruleRepository.getRulesFlow(),
                 categoryRepository.getCategoriesFlow()
             ) { txResource, rulesResource, catResource ->
-                Triple(txResource, rulesResource, catResource)
-            }.collect { (txResource, rulesResource, catResource) ->
                 val isLoading = txResource.isLoading || rulesResource.isLoading || catResource.isLoading
-                val txList = txResource.getOrNull().orEmpty()
-                val rulesList = rulesResource.getOrNull().orEmpty()
-                val catList = catResource.getOrNull().orEmpty()
-
-                val categorized = if (rulesList.isNotEmpty()) {
-                    ruleMatcherUseCase.categorizeBatch(txList, rulesList)
-                } else {
-                    txList
-                }
+                val transactions = txResource.getOrNull().orEmpty()
+                val rules = rulesResource.getOrNull().orEmpty()
+                val categories = catResource.getOrNull().orEmpty()
 
                 _uiState.update { current ->
                     current.copy(
-                        transactions = categorized,
-                        rules = rulesList,
-                        categories = catList,
                         isLoading = isLoading,
-                        filteredTransactions = applyFilter(categorized, current.searchQuery, current.selectedCategoryFilter)
+                        transactions = transactions,
+                        rules = rules,
+                        categories = categories,
+                        filteredTransactions = applyFilter(
+                            transactions,
+                            current.searchQuery,
+                            current.selectedCategoryFilter
+                        )
                     )
                 }
-            }
+            }.collect {}
         }
     }
 
@@ -97,7 +89,11 @@ class TransactionViewModel(
         _uiState.update { current ->
             current.copy(
                 searchQuery = query,
-                filteredTransactions = applyFilter(current.transactions, query, current.selectedCategoryFilter)
+                filteredTransactions = applyFilter(
+                    current.transactions,
+                    query,
+                    current.selectedCategoryFilter
+                )
             )
         }
     }
@@ -106,26 +102,70 @@ class TransactionViewModel(
         _uiState.update { current ->
             current.copy(
                 selectedCategoryFilter = category,
-                filteredTransactions = applyFilter(current.transactions, current.searchQuery, category)
+                filteredTransactions = applyFilter(
+                    current.transactions,
+                    current.searchQuery,
+                    category
+                )
             )
         }
     }
 
     private fun applyFilter(
-        list: List<Transaction>,
+        transactions: List<Transaction>,
         query: String,
         categoryFilter: String?
     ): List<Transaction> {
-        return list.filter { tx ->
+        return transactions.filter { tx ->
             val matchesQuery = query.isBlank() ||
                     tx.originalDesc.contains(query, ignoreCase = true) ||
                     tx.payee.contains(query, ignoreCase = true) ||
+                    tx.notes.contains(query, ignoreCase = true) ||
                     tx.category.contains(query, ignoreCase = true) ||
                     tx.subCategory.contains(query, ignoreCase = true)
 
-            val matchesCategory = categoryFilter == null || tx.category.equals(categoryFilter, ignoreCase = true)
+            val matchesCategory = categoryFilter == null ||
+                    tx.category.equals(categoryFilter, ignoreCase = true)
 
             matchesQuery && matchesCategory
+        }
+    }
+
+    fun updateTransactionCategory(
+        transaction: Transaction,
+        newCategory: String,
+        newSubCategory: String = "",
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val updated = transaction.copy(
+                category = newCategory,
+                subCategory = newSubCategory,
+                notes = if (notes.isNotBlank()) notes else transaction.notes
+            )
+            when (val result = transactionRepository.saveTransaction(updated)) {
+                is Resource.Success -> {
+                    categoryRepository.addOrUpdateCategory(newCategory, newSubCategory.ifBlank { null })
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            selectedTransactionForCategoryPicker = null,
+                            successMessage = "Category updated successfully!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
+                }
+                is Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun addCustomCategory(mainCategory: String, subCategory: String?) {
+        viewModelScope.launch {
+            categoryRepository.addOrUpdateCategory(mainCategory, subCategory)
         }
     }
 
@@ -135,27 +175,6 @@ class TransactionViewModel(
 
     fun closeCategoryPicker() {
         _uiState.update { it.copy(selectedTransactionForCategoryPicker = null) }
-    }
-
-    fun updateTransactionCategory(transaction: Transaction, mainCategory: String, subCategory: String) {
-        val updated = transaction.copy(
-            category = mainCategory,
-            subCategory = subCategory,
-            matchedRuleId = null
-        )
-        viewModelScope.launch {
-            transactionRepository.saveTransaction(updated)
-            _uiState.update {
-                it.copy(
-                    selectedTransactionForCategoryPicker = null,
-                    successMessage = "Categorized as '$mainCategory${if (subCategory.isNotBlank()) " > $subCategory" else ""}'"
-                )
-            }
-        }
-    }
-
-    fun addCustomCategory(mainCategory: String, subCategory: String?) {
-        categoryRepository.addOrUpdateCategory(mainCategory, subCategory)
     }
 
     fun openRuleGenDialog(transaction: Transaction) {
@@ -255,49 +274,8 @@ class TransactionViewModel(
         }
     }
 
-    // Amazon Order Details
-    fun openAmazonOrderDetails(transaction: Transaction) {
-        _uiState.update {
-            it.copy(
-                selectedAmazonTransaction = transaction,
-                isFetchingAmazonOrder = true,
-                matchedAmazonOrder = null,
-                amazonErrorMessage = null
-            )
-        }
-        viewModelScope.launch {
-            when (val result = amazonRepository.fetchOrderDetailsForTransaction(transaction.postedEpochSeconds, transaction.amount)) {
-                is Resource.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isFetchingAmazonOrder = false,
-                            matchedAmazonOrder = result.data,
-                            amazonErrorMessage = null
-                        )
-                    }
-                }
-                is Resource.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isFetchingAmazonOrder = false,
-                            amazonErrorMessage = result.message
-                        )
-                    }
-                }
-                is Resource.Loading -> Unit
-            }
-        }
-    }
-
-    fun closeAmazonOrderDetails() {
-        _uiState.update {
-            it.copy(
-                selectedAmazonTransaction = null,
-                matchedAmazonOrder = null,
-                isFetchingAmazonOrder = false,
-                amazonErrorMessage = null
-            )
-        }
+    fun openAmazonOrders(context: Context) {
+        amazonRepository.openOrderHistory(context)
     }
 
     fun clearMessages() {
