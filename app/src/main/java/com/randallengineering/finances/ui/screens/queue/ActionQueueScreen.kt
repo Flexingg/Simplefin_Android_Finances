@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,23 +17,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.core.util.DateUtils
+import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.ui.components.DuoBlue
 import com.randallengineering.finances.ui.components.DuoBlueDark
@@ -63,17 +72,7 @@ import com.randallengineering.finances.ui.components.GamificationHud
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.abs
 
-private val QuickCategories = listOf(
-    Pair("🍔 Dining", Pair("Dining", "Restaurants & Fast Food")),
-    Pair("🛒 Groceries", Pair("Groceries", "Food & Pantry")),
-    Pair("🚗 Auto & Gas", Pair("Automotive", "Fuel & Maintenance")),
-    Pair("💡 Utilities", Pair("Utilities", "Electric, Gas & Internet")),
-    Pair("🛍️ Shopping", Pair("Shopping", "Retail & Electronics")),
-    Pair("🍿 Fun", Pair("Entertainment", "Movies & Recreation")),
-    Pair("🏥 Health", Pair("Health & Medical", "Pharmacy & Wellness")),
-    Pair("💼 Income", Pair("Income", "Salary & Deposits"))
-)
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ActionQueueScreen(
     viewModel: ActionQueueViewModel = koinViewModel(),
@@ -83,6 +82,66 @@ fun ActionQueueScreen(
     val currentTx = uiState.currentTransaction
 
     val isUncategorized = currentTx?.category.isNullOrBlank() || currentTx?.category.equals("Uncategorized", ignoreCase = true)
+    var isExpandedAllCategories by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var selectedCategoryForSub by remember { mutableStateOf<CategoryHierarchy?>(null) }
+
+    // Add Category Dialog
+    if (showAddCategoryDialog) {
+        var newCatName by remember { mutableStateOf("") }
+        var newSubName by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showAddCategoryDialog = false },
+            title = { Text("➕ Add Custom Category", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = newCatName,
+                        onValueChange = { newCatName = it },
+                        label = { Text("Main Category (e.g. Pet Care, Hobbies)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = newSubName,
+                        onValueChange = { newSubName = it },
+                        label = { Text("Subcategory (Optional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                DuolingoPressableButton(
+                    onClick = {
+                        if (newCatName.isNotBlank()) {
+                            viewModel.addNewCategory(newCatName.trim(), newSubName.trim().ifBlank { null })
+                            if (currentTx != null) {
+                                viewModel.editCategory(currentTx, newCatName.trim(), newSubName.trim())
+                            }
+                            showAddCategoryDialog = false
+                        }
+                    },
+                    backgroundColor = DuoGreen,
+                    shadowColor = DuoGreenDark,
+                    cornerRadius = 10.dp
+                ) {
+                    Text("Save & Select", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                DuolingoPressableButton(
+                    onClick = { showAddCategoryDialog = false },
+                    backgroundColor = Color.Gray,
+                    shadowColor = Color.DarkGray,
+                    cornerRadius = 10.dp
+                ) {
+                    Text("Cancel", color = Color.White)
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -163,7 +222,7 @@ fun ActionQueueScreen(
                         Text("🦉", style = MaterialTheme.typography.displayLarge)
                         Text("Queue Cleared!", fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium)
                         Text(
-                            text = "You verified all transactions and left 0 uncategorized! +${uiState.totalXpEarnedInSession} XP earned today. Streak is secure.",
+                            text = "All transactions categorized and verified! +${uiState.totalXpEarnedInSession} XP earned today.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -184,7 +243,7 @@ fun ActionQueueScreen(
                     }
                 }
             } else {
-                // Duolingo Mascot Speech Prompt
+                // Duolingo Mascot Prompt
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -247,7 +306,7 @@ fun ActionQueueScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Text("Current Category: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Current: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Card(
                                 shape = Shapes.small,
                                 colors = CardDefaults.cardColors(
@@ -263,7 +322,7 @@ fun ActionQueueScreen(
                                         Spacer(Modifier.width(4.dp))
                                     }
                                     Text(
-                                        text = if (isUncategorized) "Uncategorized (Action Required)" else "${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
+                                        text = if (isUncategorized) "Uncategorized (Required)" else "${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
                                         fontWeight = FontWeight.Bold,
                                         color = if (isUncategorized) DuoRedDark else DuoGreenDark,
                                         style = MaterialTheme.typography.labelSmall
@@ -274,9 +333,10 @@ fun ActionQueueScreen(
                     }
                 }
 
-                // 1-Tap Category Grid (Direct 3D buttons)
+                // Primary / Top Categories Grid
+                val topCategories = uiState.availableCategories.take(6)
                 Text(
-                    text = if (isUncategorized) "Select Category to Earn XP:" else "Or Change Category:",
+                    text = "Select Category from Database:",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleSmall
                 )
@@ -285,38 +345,185 @@ fun ActionQueueScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    for (i in QuickCategories.indices step 2) {
+                    for (i in topCategories.indices step 2) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            val cat1 = QuickCategories[i]
+                            val cat1 = topCategories[i]
+                            val emoji1 = getCategoryEmoji(cat1.mainCategory)
                             DuolingoPressableButton(
-                                onClick = { viewModel.editCategory(currentTx, cat1.second.first, cat1.second.second) },
-                                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                onClick = {
+                                    if (cat1.subCategories.isNotEmpty()) {
+                                        selectedCategoryForSub = cat1
+                                    } else {
+                                        viewModel.editCategory(currentTx, cat1.mainCategory, "")
+                                    }
+                                },
+                                backgroundColor = if (currentTx.category.equals(cat1.mainCategory, ignoreCase = true)) DuoGreen.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
                                 shadowColor = Color.LightGray,
                                 cornerRadius = 12.dp,
                                 shadowHeight = 3.dp,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(cat1.first, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                Text("$emoji1 ${cat1.mainCategory}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                             }
 
-                            if (i + 1 < QuickCategories.size) {
-                                val cat2 = QuickCategories[i + 1]
+                            if (i + 1 < topCategories.size) {
+                                val cat2 = topCategories[i + 1]
+                                val emoji2 = getCategoryEmoji(cat2.mainCategory)
                                 DuolingoPressableButton(
-                                    onClick = { viewModel.editCategory(currentTx, cat2.second.first, cat2.second.second) },
-                                    backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    onClick = {
+                                        if (cat2.subCategories.isNotEmpty()) {
+                                            selectedCategoryForSub = cat2
+                                        } else {
+                                            viewModel.editCategory(currentTx, cat2.mainCategory, "")
+                                        }
+                                    },
+                                    backgroundColor = if (currentTx.category.equals(cat2.mainCategory, ignoreCase = true)) DuoGreen.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
                                     shadowColor = Color.LightGray,
                                     cornerRadius = 12.dp,
                                     shadowHeight = 3.dp,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(cat2.first, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                    Text("$emoji2 ${cat2.mainCategory}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                                 }
                             }
                         }
                     }
+                }
+
+                // Expandable Section for All Database Categories
+                val remainingCategories = uiState.availableCategories.drop(6)
+                if (remainingCategories.isNotEmpty() || true) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isExpandedAllCategories = !isExpandedAllCategories },
+                        shape = Shapes.medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🗂️ All Database Categories (${uiState.availableCategories.size})",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Icon(
+                                if (isExpandedAllCategories) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = isExpandedAllCategories) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.availableCategories.forEach { cat ->
+                                    val emoji = getCategoryEmoji(cat.mainCategory)
+                                    Card(
+                                        modifier = Modifier
+                                            .clip(Shapes.small)
+                                            .clickable {
+                                                if (cat.subCategories.isNotEmpty()) {
+                                                    selectedCategoryForSub = cat
+                                                } else {
+                                                    viewModel.editCategory(currentTx, cat.mainCategory, "")
+                                                }
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (currentTx.category.equals(cat.mainCategory, ignoreCase = true)) DuoGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface
+                                        )
+                                    ) {
+                                        Text(
+                                            text = "$emoji ${cat.mainCategory}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+
+                                // ➕ Add New Category Pill
+                                Card(
+                                    modifier = Modifier
+                                        .clip(Shapes.small)
+                                        .clickable { showAddCategoryDialog = true },
+                                    colors = CardDefaults.cardColors(containerColor = DuoBlue.copy(alpha = 0.15f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = DuoBlueDark, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("New Category", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = DuoBlueDark)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Subcategory Selection Popup
+                if (selectedCategoryForSub != null) {
+                    val cat = selectedCategoryForSub!!
+                    AlertDialog(
+                        onDismissRequest = { selectedCategoryForSub = null },
+                        title = { Text("Select ${cat.mainCategory} Subcategory", fontWeight = FontWeight.Bold) },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                DuolingoPressableButton(
+                                    onClick = {
+                                        viewModel.editCategory(currentTx, cat.mainCategory, "")
+                                        selectedCategoryForSub = null
+                                    },
+                                    backgroundColor = DuoGreen,
+                                    shadowColor = DuoGreenDark,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("General / No Subcategory", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+
+                                cat.subCategories.forEach { sub ->
+                                    DuolingoPressableButton(
+                                        onClick = {
+                                            viewModel.editCategory(currentTx, cat.mainCategory, sub)
+                                            selectedCategoryForSub = null
+                                        },
+                                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        shadowColor = Color.LightGray,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(sub, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            DuolingoPressableButton(
+                                onClick = { selectedCategoryForSub = null },
+                                backgroundColor = Color.Gray,
+                                shadowColor = Color.DarkGray,
+                                cornerRadius = 10.dp
+                            ) {
+                                Text("Cancel", color = Color.White)
+                            }
+                        }
+                    )
                 }
 
                 // Bottom Confirmation Button (Only enabled if categorized!)
@@ -338,5 +545,24 @@ fun ActionQueueScreen(
                 }
             }
         }
+    }
+}
+
+private fun getCategoryEmoji(name: String): String {
+    val lower = name.lowercase()
+    return when {
+        lower.contains("dining") || lower.contains("food") || lower.contains("restaurant") -> "🍔"
+        lower.contains("grocer") -> "🛒"
+        lower.contains("auto") || lower.contains("gas") || lower.contains("car") -> "🚗"
+        lower.contains("util") || lower.contains("electric") || lower.contains("bill") -> "💡"
+        lower.contains("shop") || lower.contains("retail") || lower.contains("amazon") -> "🛍️"
+        lower.contains("entertain") || lower.contains("fun") || lower.contains("game") -> "🍿"
+        lower.contains("health") || lower.contains("medic") || lower.contains("pharmacy") -> "🏥"
+        lower.contains("income") || lower.contains("salary") || lower.contains("deposit") -> "💼"
+        lower.contains("subscript") || lower.contains("netflix") || lower.contains("stream") -> "📱"
+        lower.contains("home") || lower.contains("house") || lower.contains("rent") -> "🏠"
+        lower.contains("travel") || lower.contains("hotel") || lower.contains("flight") -> "✈️"
+        lower.contains("kid") || lower.contains("baby") || lower.contains("toy") -> "🧸"
+        else -> "🏷️"
     }
 }
