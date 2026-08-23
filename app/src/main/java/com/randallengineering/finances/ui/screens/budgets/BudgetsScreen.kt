@@ -23,10 +23,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Rule
 import androidx.compose.material.icons.filled.Warning
@@ -39,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -61,6 +66,7 @@ import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.Budget
 import com.randallengineering.finances.domain.model.BudgetCategoryType
 import com.randallengineering.finances.domain.model.CategoryHierarchy
+import com.randallengineering.finances.domain.model.MainCategoryBudgetGroup
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.ui.components.DuoBlue
 import com.randallengineering.finances.ui.components.DuoBlueDark
@@ -83,19 +89,36 @@ fun BudgetsScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val calculatedBudgets = uiState.calculationResult?.calculatedBudgets ?: emptyList()
+    val calc = uiState.calculationResult
+    val mainCategoryGroups = calc?.mainCategoryGroups ?: emptyList()
+    val hasIncomeCategory = uiState.categories.any { it.mainCategory.equals(uiState.incomeCategory, ignoreCase = true) }
 
-    // 1. Create / Edit Budget Dialog
+    // 1. Create / Edit Budget Dialog (Subcategory focused)
     if (uiState.isCreatingBudget || uiState.editingBudget != null) {
-        DuolingoBudgetDialog(
+        DuolingoSubcategoryBudgetDialog(
             initialBudget = uiState.editingBudget,
             categories = uiState.categories,
+            totalMtdIncome = calc?.totalMtdIncome ?: 0.0,
             onDismiss = { viewModel.closeDialogs() },
             onSave = { viewModel.saveBudget(it) }
         )
     }
 
-    // 2. Create Category Dialog
+    // 2. Change Income Category Dialog
+    if (uiState.isChangingIncomeCategory) {
+        DuolingoIncomeCategoryDialog(
+            currentIncomeCategory = uiState.incomeCategory,
+            categories = uiState.categories,
+            onDismiss = { viewModel.closeDialogs() },
+            onSelect = { viewModel.setIncomeCategory(it) },
+            onCreateIncomeCategory = {
+                viewModel.addCategory("Income", "Salary & Wages")
+                viewModel.setIncomeCategory("Income")
+            }
+        )
+    }
+
+    // 3. Create Category Dialog
     if (uiState.isCreatingCategory) {
         DuolingoCategoryDialog(
             onDismiss = { viewModel.closeDialogs() },
@@ -103,7 +126,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 3. Add Subcategory Dialog
+    // 4. Add Subcategory Dialog
     if (uiState.selectedMainCategoryForSub != null) {
         DuolingoSubCategoryDialog(
             mainCategory = uiState.selectedMainCategoryForSub!!,
@@ -118,29 +141,45 @@ fun BudgetsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Mascot Coach Prompt
+            // Income Category Status Bar
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(Shapes.large)
+                    .clickable { viewModel.openChangeIncomeCategoryDialog() },
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoGreen.copy(alpha = 0.15f))
+                colors = CardDefaults.cardColors(containerColor = if (hasIncomeCategory) DuoGreen.copy(alpha = 0.15f) else DuoGold.copy(alpha = 0.18f))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🦉", style = MaterialTheme.typography.displaySmall)
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Category & Budget HQ", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGreenDark)
-                        Text(
-                            text = "Set limits on your top categories and build your 25+ subcategories hierarchy to unlock Chapter 1 & 2 quest rewards!",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text("💰", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text("Income Category: ${uiState.incomeCategory}", fontWeight = FontWeight.Bold, color = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                text = if (hasIncomeCategory) "MTD Income: ${CurrencyFormatter.format(calc?.totalMtdIncome ?: 0.0)}" else "⚠️ Tap to set up your Income category",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    DuolingoPressableButton(
+                        onClick = { viewModel.openChangeIncomeCategoryDialog() },
+                        backgroundColor = if (hasIncomeCategory) DuoGreen else DuoGold,
+                        shadowColor = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark,
+                        cornerRadius = 8.dp,
+                        shadowHeight = 2.dp
+                    ) {
+                        Text(if (hasIncomeCategory) "Change" else "Set Up", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -157,7 +196,7 @@ fun BudgetsScreen(
                 Tab(
                     selected = uiState.selectedTab == 0,
                     onClick = { viewModel.onTabSelect(0) },
-                    text = { Text("📊 Budgets (${calculatedBudgets.size})", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
+                    text = { Text("📊 Budgets (${mainCategoryGroups.size})", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
@@ -173,8 +212,9 @@ fun BudgetsScreen(
 
             // Tab Contents
             when (uiState.selectedTab) {
-                0 -> BudgetsTabContent(
-                    budgets = calculatedBudgets,
+                0 -> SubcategoryBudgetsTabContent(
+                    mainCategoryGroups = mainCategoryGroups,
+                    totalBudgetsCount = calc?.calculatedBudgets?.size ?: 0,
                     onAddBudget = { viewModel.openCreateBudgetDialog() },
                     onEditBudget = { viewModel.openEditBudgetDialog(it) },
                     onDeleteBudget = { viewModel.deleteBudget(it) }
@@ -196,8 +236,9 @@ fun BudgetsScreen(
 }
 
 @Composable
-private fun BudgetsTabContent(
-    budgets: List<Budget>,
+private fun SubcategoryBudgetsTabContent(
+    mainCategoryGroups: List<MainCategoryBudgetGroup>,
+    totalBudgetsCount: Int,
     onAddBudget: () -> Unit,
     onEditBudget: (Budget) -> Unit,
     onDeleteBudget: (String) -> Unit
@@ -215,11 +256,11 @@ private fun BudgetsTabContent(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
                 Spacer(Modifier.width(8.dp))
-                Text("Add New Category Budget", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Add Subcategory Budget ($ or % of Income)", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
 
-        if (budgets.isEmpty()) {
+        if (mainCategoryGroups.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
@@ -232,18 +273,15 @@ private fun BudgetsTabContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("📊", style = MaterialTheme.typography.displaySmall)
-                        Text("No Budgets Configured", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("Create at least 3 category budgets to complete Chapter 1 quest milestones!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("No Subcategory Budgets Set", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Budget against specific subcategories (e.g. Fast Food, Gas, Rent) to automatically calculate main category totals!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 }
             }
         }
 
-        items(budgets, key = { it.id }) { budget ->
-            val isOver = budget.spentAmount > budget.targetAmount && budget.targetAmount > 0
-            val healthPercent = if (budget.targetAmount > 0) {
-                ((budget.targetAmount - budget.spentAmount) / budget.targetAmount).toFloat().coerceIn(0f, 1f)
-            } else 1f
+        items(mainCategoryGroups, key = { it.mainCategory }) { group ->
+            var isExpanded by remember { mutableStateOf(true) }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,55 +294,391 @@ private fun BudgetsTabContent(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // Main Category Rollup Header
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isExpanded = !isExpanded },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(budget.category, fontWeight = FontWeight.Black, color = Color.White, style = MaterialTheme.typography.titleMedium)
-                            Text("Limit: ${CurrencyFormatter.format(budget.targetAmount)}/month", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${getCategoryEmoji(group.mainCategory)} ${group.mainCategory}",
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "(${group.subBudgets.size} subcategories)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                            Text(
+                                text = "Total Limit: ${CurrencyFormatter.format(group.totalTargetAmount)}/mo (Auto-Sum)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { onEditBudget(budget) }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue, modifier = Modifier.size(20.dp))
-                            }
-                            IconButton(onClick = { onDeleteBudget(budget.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(20.dp))
-                            }
+                            Text(
+                                text = if (group.isOverBudget) "⚠️ Over!" else "Health: ${(group.healthPercent * 100).toInt()}%",
+                                fontWeight = FontWeight.Bold,
+                                color = if (group.isOverBudget) DuoRed else DuoGreen,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
                         }
                     }
 
-                    // Budget Health Status
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Spent: ${CurrencyFormatter.format(budget.spentAmount)}", fontWeight = FontWeight.Bold, color = if (isOver) DuoRed else Color.White, style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            text = if (isOver) "⚠️ Over Budget!" else "Health: ${(healthPercent * 100).toInt()}%",
-                            fontWeight = FontWeight.Bold,
-                            color = if (isOver) DuoRedDark else DuoGreen,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-
+                    // Main Category Combined Health Bar
                     LinearProgressIndicator(
-                        progress = { if (budget.targetAmount > 0) (budget.spentAmount.toFloat() / budget.targetAmount.toFloat()).coerceIn(0f, 1f) else 0f },
+                        progress = { if (group.totalTargetAmount > 0) (group.totalSpentAmount.toFloat() / group.totalTargetAmount.toFloat()).coerceIn(0f, 1f) else 0f },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(CircleShape),
-                        color = if (isOver) DuoRed else DuoGreen,
+                        color = if (group.isOverBudget) DuoRed else DuoGreen,
                         trackColor = Color(0xFF1E1726)
                     )
+
+                    // Subcategory Budgets List
+                    AnimatedVisibility(visible = isExpanded) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                            group.subBudgets.forEach { subBudget ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = Shapes.medium,
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1726))
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = if (subBudget.subCategory.isNotBlank()) subBudget.subCategory else "General / All",
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            val typeLabel = if (subBudget.categoryType == BudgetCategoryType.PERCENT_INCOME) "${subBudget.incomePercentage}% of Income" else "Fixed Monthly"
+                                            Text(
+                                                text = "${CurrencyFormatter.format(subBudget.spentAmount)} / ${CurrencyFormatter.format(subBudget.targetAmount)} ($typeLabel)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (subBudget.isOverBudget) DuoRed else Color.White.copy(alpha = 0.7f)
+                                            )
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(onClick = { onEditBudget(subBudget) }, modifier = Modifier.size(32.dp)) {
+                                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue, modifier = Modifier.size(16.dp))
+                                            }
+                                            IconButton(onClick = { onDeleteBudget(subBudget.id) }, modifier = Modifier.size(32.dp)) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+// -------------------------------------------------------------
+// Subcategory Budget Creation & Edit Dialog
+// -------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DuolingoSubcategoryBudgetDialog(
+    initialBudget: Budget?,
+    categories: List<CategoryHierarchy>,
+    totalMtdIncome: Double,
+    onDismiss: () -> Unit,
+    onSave: (Budget) -> Unit
+) {
+    var selectedMain by remember { mutableStateOf(initialBudget?.category ?: categories.firstOrNull()?.mainCategory.orEmpty()) }
+    val activeCat = categories.find { it.mainCategory.equals(selectedMain, ignoreCase = true) }
+    var selectedSub by remember { mutableStateOf(initialBudget?.subCategory ?: activeCat?.subCategories?.firstOrNull().orEmpty()) }
+
+    var budgetType by remember { mutableStateOf(initialBudget?.categoryType ?: BudgetCategoryType.FIXED) }
+    var fixedAmountText by remember { mutableStateOf(if (initialBudget?.categoryType == BudgetCategoryType.FIXED) initialBudget.targetAmount.toString() else "150.00") }
+    var percentIncomeText by remember { mutableStateOf(initialBudget?.incomePercentage?.toString() ?: "10.0") }
+
+    val calculatedTargetFromPercent = (percentIncomeText.toDoubleOrNull() ?: 0.0) / 100.0 * totalMtdIncome
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialBudget != null) "Edit Subcategory Budget" else "➕ New Subcategory Budget", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 1. Select Main Category
+                Text("1. Select Main Category:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    categories.forEach { cat ->
+                        val isSelected = selectedMain.equals(cat.mainCategory, ignoreCase = true)
+                        Card(
+                            modifier = Modifier
+                                .clip(Shapes.small)
+                                .clickable {
+                                    selectedMain = cat.mainCategory
+                                    selectedSub = cat.subCategories.firstOrNull().orEmpty()
+                                },
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                        ) {
+                            Text(
+                                text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                // 2. Select Subcategory
+                Text("2. Select Subcategory to Budget Against:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                if (activeCat?.subCategories.isNullOrEmpty()) {
+                    Text("No subcategories defined for $selectedMain yet. This budget will apply to all $selectedMain expenses.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        activeCat!!.subCategories.forEach { sub ->
+                            val isSelected = selectedSub.equals(sub, ignoreCase = true)
+                            Card(
+                                modifier = Modifier
+                                    .clip(Shapes.small)
+                                    .clickable { selectedSub = sub },
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                            ) {
+                                Text(
+                                    text = sub,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                // 3. Budget Type (Fixed $ vs % Income)
+                Text("3. Choose Budget Limit Type:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DuolingoPressableButton(
+                        onClick = { budgetType = BudgetCategoryType.FIXED },
+                        backgroundColor = if (budgetType == BudgetCategoryType.FIXED) DuoGreen else DuoCardDark,
+                        shadowColor = if (budgetType == BudgetCategoryType.FIXED) DuoGreenDark else DuoCardShadow,
+                        cornerRadius = 10.dp,
+                        shadowHeight = 3.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("💵 Fixed Monthly ($)", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                    }
+
+                    DuolingoPressableButton(
+                        onClick = { budgetType = BudgetCategoryType.PERCENT_INCOME },
+                        backgroundColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) DuoBlue else DuoCardDark,
+                        shadowColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) DuoBlueDark else DuoCardShadow,
+                        cornerRadius = 10.dp,
+                        shadowHeight = 3.dp,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("📈 % of Income", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                if (budgetType == BudgetCategoryType.FIXED) {
+                    OutlinedTextField(
+                        value = fixedAmountText,
+                        onValueChange = { fixedAmountText = it },
+                        label = { Text("Monthly Limit ($)") },
+                        prefix = { Text("$") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = percentIncomeText,
+                            onValueChange = { percentIncomeText = it },
+                            label = { Text("Percentage of Monthly Income (%)") },
+                            suffix = { Text("%") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "≈ ${CurrencyFormatter.format(calculatedTargetFromPercent)}/mo based on MTD Income (${CurrencyFormatter.format(totalMtdIncome)})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DuoBlueDark,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            DuolingoPressableButton(
+                onClick = {
+                    val target = if (budgetType == BudgetCategoryType.FIXED) {
+                        fixedAmountText.toDoubleOrNull() ?: 0.0
+                    } else {
+                        calculatedTargetFromPercent
+                    }
+
+                    val percent = if (budgetType == BudgetCategoryType.PERCENT_INCOME) {
+                        percentIncomeText.toDoubleOrNull()
+                    } else null
+
+                    if (selectedMain.isNotBlank() && target > 0) {
+                        val budget = (initialBudget ?: Budget(
+                            id = UUID.randomUUID().toString(),
+                            category = selectedMain,
+                            subCategory = selectedSub
+                        )).copy(
+                            category = selectedMain,
+                            subCategory = selectedSub,
+                            categoryType = budgetType,
+                            targetAmount = target,
+                            incomePercentage = percent
+                        )
+                        onSave(budget)
+                    }
+                },
+                backgroundColor = DuoGreen,
+                shadowColor = DuoGreenDark,
+                cornerRadius = 10.dp
+            ) {
+                Text("Save Budget", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Cancel", color = Color.White)
+            }
+        }
+    )
+}
+
+// -------------------------------------------------------------
+// Income Category Selector Dialog
+// -------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DuolingoIncomeCategoryDialog(
+    currentIncomeCategory: String,
+    categories: List<CategoryHierarchy>,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit,
+    onCreateIncomeCategory: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("💰 Select Income Main Category", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Any transaction assigned to this main category will be treated as Income for your percentage-based budgets and savings calculations.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    categories.forEach { cat ->
+                        val isSelected = currentIncomeCategory.equals(cat.mainCategory, ignoreCase = true)
+                        Card(
+                            modifier = Modifier
+                                .clip(Shapes.small)
+                                .clickable {
+                                    onSelect(cat.mainCategory)
+                                },
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                        ) {
+                            Text(
+                                text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+
+                DuolingoPressableButton(
+                    onClick = onCreateIncomeCategory,
+                    backgroundColor = DuoBlue,
+                    shadowColor = DuoBlueDark,
+                    cornerRadius = 10.dp,
+                    shadowHeight = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Create Default \"Income\" Category", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        confirmButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Close", color = Color.White)
+            }
+        }
+    )
+}
+
+// -------------------------------------------------------------
+// Categories & Rules Tabs
+// -------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -373,7 +747,7 @@ private fun CategoriesTabContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = cat.mainCategory,
+                            text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
                             fontWeight = FontWeight.Black,
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White
@@ -480,73 +854,6 @@ private fun RulesTabContent(
     }
 }
 
-// -------------------------------------------------------------
-// Duolingo 3D Dialogs for Budgets & Categories
-// -------------------------------------------------------------
-
-@Composable
-fun DuolingoBudgetDialog(
-    initialBudget: Budget?,
-    categories: List<CategoryHierarchy>,
-    onDismiss: () -> Unit,
-    onSave: (Budget) -> Unit
-) {
-    var selectedCategory by remember { mutableStateOf(initialBudget?.category ?: categories.firstOrNull()?.mainCategory.orEmpty()) }
-    var limitText by remember { mutableStateOf(initialBudget?.targetAmount?.toString() ?: "300.00") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initialBudget != null) "Edit Budget" else "➕ New Category Budget", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = selectedCategory,
-                    onValueChange = { selectedCategory = it },
-                    label = { Text("Category Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = limitText,
-                    onValueChange = { limitText = it },
-                    label = { Text("Monthly Limit ($)") },
-                    prefix = { Text("$") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            DuolingoPressableButton(
-                onClick = {
-                    val limit = limitText.toDoubleOrNull() ?: 0.0
-                    if (selectedCategory.isNotBlank() && limit > 0) {
-                        val budget = (initialBudget ?: Budget(id = UUID.randomUUID().toString(), category = selectedCategory, targetAmount = limit)).copy(
-                            category = selectedCategory,
-                            targetAmount = limit
-                        )
-                        onSave(budget)
-                    }
-                },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
-                cornerRadius = 10.dp
-            ) {
-                Text("Save Budget", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            DuolingoPressableButton(
-                onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
-                cornerRadius = 10.dp
-            ) {
-                Text("Cancel", color = Color.White)
-            }
-        }
-    )
-}
-
 @Composable
 fun DuolingoCategoryDialog(
     onDismiss: () -> Unit,
@@ -645,4 +952,23 @@ fun DuolingoSubCategoryDialog(
             }
         }
     )
+}
+
+private fun getCategoryEmoji(name: String): String {
+    val lower = name.lowercase()
+    return when {
+        lower.contains("dining") || lower.contains("food") || lower.contains("restaurant") -> "🍔"
+        lower.contains("grocer") -> "🛒"
+        lower.contains("auto") || lower.contains("gas") || lower.contains("transport") -> "🚗"
+        lower.contains("util") || lower.contains("electric") || lower.contains("bill") -> "💡"
+        lower.contains("shop") || lower.contains("retail") || lower.contains("amazon") -> "🛍️"
+        lower.contains("entertain") || lower.contains("fun") || lower.contains("game") -> "🍿"
+        lower.contains("health") || lower.contains("medic") || lower.contains("wellness") -> "🏥"
+        lower.contains("income") || lower.contains("salary") || lower.contains("deposit") -> "💼"
+        lower.contains("subscript") || lower.contains("netflix") || lower.contains("stream") -> "📱"
+        lower.contains("home") || lower.contains("house") || lower.contains("rent") || lower.contains("mortgage") -> "🏠"
+        lower.contains("travel") || lower.contains("hotel") || lower.contains("flight") -> "✈️"
+        lower.contains("kid") || lower.contains("baby") || lower.contains("toy") -> "🧸"
+        else -> "🏷️"
+    }
 }

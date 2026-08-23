@@ -19,9 +19,20 @@ class CategoryRepository(
     private val prefs = context.getSharedPreferences("randall_categories", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
     private val _categoriesFlow = MutableStateFlow<List<CategoryHierarchy>>(emptyList())
+    private val _incomeCategoryFlow = MutableStateFlow(prefs.getString("income_category_name", "Income") ?: "Income")
 
     init {
         loadCategories()
+    }
+
+    fun getIncomeCategory(): String = _incomeCategoryFlow.value
+
+    fun getIncomeCategoryFlow(): Flow<String> = _incomeCategoryFlow.asStateFlow()
+
+    fun setIncomeCategory(name: String) {
+        val clean = name.trim().ifBlank { "Income" }
+        _incomeCategoryFlow.value = clean
+        prefs.edit().putString("income_category_name", clean).apply()
     }
 
     private fun loadCategories() {
