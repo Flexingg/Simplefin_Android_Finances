@@ -29,11 +29,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Rule
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -67,6 +69,7 @@ import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.Budget
 import com.randallengineering.finances.domain.model.BudgetCategoryType
 import com.randallengineering.finances.domain.model.CategoryHierarchy
+import com.randallengineering.finances.domain.model.Goal
 import com.randallengineering.finances.domain.model.MainCategoryBudgetGroup
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.ui.components.DuoBlue
@@ -81,6 +84,9 @@ import com.randallengineering.finances.ui.components.DuoRed
 import com.randallengineering.finances.ui.components.DuoRedDark
 import com.randallengineering.finances.ui.components.DuolingoPressableButton
 import org.koin.androidx.compose.koinViewModel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -106,7 +112,16 @@ fun BudgetsScreen(
         )
     }
 
-    // 2. Change Income Category Dialog
+    // 2. Create / Edit Goal Dialog
+    if (uiState.isCreatingGoal || uiState.editingGoal != null) {
+        DuolingoGoalDialog(
+            initialGoal = uiState.editingGoal,
+            onDismiss = { viewModel.closeDialogs() },
+            onSave = { viewModel.saveGoal(it) }
+        )
+    }
+
+    // 3. Change Income Category Dialog
     if (uiState.isChangingIncomeCategory) {
         DuolingoIncomeCategoryDialog(
             currentIncomeCategory = uiState.incomeCategory,
@@ -120,7 +135,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 3. Create Main Category Dialog
+    // 4. Create Main Category Dialog
     if (uiState.isCreatingCategory) {
         DuolingoCategoryDialog(
             onDismiss = { viewModel.closeDialogs() },
@@ -128,7 +143,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 4. Edit Main Category Dialog
+    // 5. Edit Main Category Dialog
     if (uiState.editingMainCategory != null) {
         DuolingoRenameCategoryDialog(
             currentName = uiState.editingMainCategory!!,
@@ -138,7 +153,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 5. Edit Subcategory Dialog
+    // 6. Edit Subcategory Dialog
     if (uiState.editingSubCategory != null) {
         val (mainCat, oldSub) = uiState.editingSubCategory!!
         DuolingoRenameCategoryDialog(
@@ -149,7 +164,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 6. Add Subcategory Dialog
+    // 7. Add Subcategory Dialog
     if (uiState.selectedMainCategoryForSub != null) {
         DuolingoSubCategoryDialog(
             mainCategory = uiState.selectedMainCategoryForSub!!,
@@ -158,7 +173,7 @@ fun BudgetsScreen(
         )
     }
 
-    // 7. Create / Edit Rule Dialog
+    // 8. Create / Edit Rule Dialog
     if (uiState.isCreatingRule || uiState.editingRule != null) {
         DuolingoRuleDialog(
             initialRule = uiState.editingRule,
@@ -240,7 +255,7 @@ fun BudgetsScreen(
             }
         }
 
-        // Duolingo 3-Tab Bar
+        // Duolingo 4-Tab Bar (Budgets, Goals, Categories, Rules)
         TabRow(
             selectedTabIndex = uiState.selectedTab,
             modifier = Modifier
@@ -252,17 +267,22 @@ fun BudgetsScreen(
             Tab(
                 selected = uiState.selectedTab == 0,
                 onClick = { viewModel.onTabSelect(0) },
-                text = { Text("📊 Budgets (${mainCategoryGroups.size})", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
+                text = { Text("📊 Budgets", fontWeight = if (uiState.selectedTab == 0) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.labelSmall) }
             )
             Tab(
                 selected = uiState.selectedTab == 1,
                 onClick = { viewModel.onTabSelect(1) },
-                text = { Text("🗂️ Categories (${uiState.categories.size})", fontWeight = if (uiState.selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
+                text = { Text("🎯 Goals (${uiState.goals.size})", fontWeight = if (uiState.selectedTab == 1) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.labelSmall) }
             )
             Tab(
                 selected = uiState.selectedTab == 2,
                 onClick = { viewModel.onTabSelect(2) },
-                text = { Text("⚡ Rules (${uiState.rules.size})", fontWeight = if (uiState.selectedTab == 2) FontWeight.Bold else FontWeight.Normal) }
+                text = { Text("🗂️ Categories", fontWeight = if (uiState.selectedTab == 2) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.labelSmall) }
+            )
+            Tab(
+                selected = uiState.selectedTab == 3,
+                onClick = { viewModel.onTabSelect(3) },
+                text = { Text("⚡ Rules (${uiState.rules.size})", fontWeight = if (uiState.selectedTab == 3) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.labelSmall) }
             )
         }
 
@@ -275,7 +295,14 @@ fun BudgetsScreen(
                 onEditBudget = { viewModel.openEditBudgetDialog(it) },
                 onDeleteBudget = { viewModel.deleteBudget(it) }
             )
-            1 -> CategoriesTabContent(
+            1 -> GoalsTabContent(
+                goals = uiState.goals,
+                onAddGoal = { viewModel.openCreateGoalDialog() },
+                onEditGoal = { viewModel.openEditGoalDialog(it) },
+                onDeleteGoal = { viewModel.deleteGoal(it) },
+                onAddContribution = { id, amount -> viewModel.addGoalContribution(id, amount) }
+            )
+            2 -> CategoriesTabContent(
                 categories = uiState.categories,
                 onAddCategory = { viewModel.openCreateCategoryDialog() },
                 onEditCategory = { viewModel.openEditMainCategoryDialog(it) },
@@ -284,7 +311,7 @@ fun BudgetsScreen(
                 onEditSubCategory = { main, sub -> viewModel.openEditSubCategoryDialog(main, sub) },
                 onDeleteSubCategory = { main, sub -> viewModel.deleteSubCategory(main, sub) }
             )
-            2 -> RulesTabContent(
+            3 -> RulesTabContent(
                 rules = uiState.rules,
                 isAutoRunEnabled = uiState.isAutoRunRulesEnabled,
                 onToggleAutoRun = { viewModel.toggleAutoRunRules(it) },
@@ -481,7 +508,210 @@ private fun SubcategoryBudgetsTabContent(
 }
 
 // -------------------------------------------------------------
-// 2. Categories Tab (Full Main & Sub Editing & Renaming)
+// 2. Goals Tab (Duolingo 3D Savings & Wants Vault)
+// -------------------------------------------------------------
+
+@Composable
+private fun GoalsTabContent(
+    goals: List<Goal>,
+    onAddGoal: () -> Unit,
+    onEditGoal: (Goal) -> Unit,
+    onDeleteGoal: (String) -> Unit,
+    onAddContribution: (String, Double) -> Unit
+) {
+    val totalSaved = goals.sumOf { it.currentAmount }
+    val totalTarget = goals.sumOf { it.targetAmount }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Vault Overview Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoGold.copy(alpha = 0.15f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🏦", style = MaterialTheme.typography.displaySmall)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Savings Vault & Targets", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
+                        Text(
+                            text = "Total Saved: ${CurrencyFormatter.format(totalSaved)} / ${CurrencyFormatter.format(totalTarget)} (${if (totalTarget > 0) ((totalSaved / totalTarget) * 100).toInt() else 0}%)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            DuolingoPressableButton(
+                onClick = onAddGoal,
+                backgroundColor = DuoGold,
+                shadowColor = DuoGoldDark,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Create New Savings / Wants Goal", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (goals.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                    shape = Shapes.large,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("🎯", style = MaterialTheme.typography.displaySmall)
+                        Text("No Financial Goals Created", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                        Text("Set up an Emergency Fund, Vacation, or Major Purchase goal to earn Chapter 1 & 3 quest rewards!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+            }
+        }
+
+        items(goals, key = { it.id }) { goal ->
+            val progressPercent = goal.progressPercent.toFloat() / 100f
+            val targetDateFormatted = try {
+                val instant = Instant.ofEpochSecond(goal.targetEpochSeconds)
+                val zdt = instant.atZone(ZoneId.systemDefault())
+                zdt.format(DateTimeFormatter.ofPattern("MMM yyyy"))
+            } catch (e: Exception) {
+                "Target Goal"
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.large,
+                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "🎯 ${goal.title}",
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                if (goal.isCompleted) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("✅ Completed!", style = MaterialTheme.typography.labelSmall, color = DuoGreen, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                text = "Category: ${goal.category} • Target Date: $targetDateFormatted",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onEditGoal(goal) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue, modifier = Modifier.size(16.dp))
+                            }
+                            IconButton(onClick = { onDeleteGoal(goal.id) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+
+                    // Progress Status
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${CurrencyFormatter.format(goal.currentAmount)} / ${CurrencyFormatter.format(goal.targetAmount)}",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "${goal.progressPercent.toInt()}% Saved",
+                            fontWeight = FontWeight.Bold,
+                            color = if (goal.isCompleted) DuoGreen else DuoGold,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { progressPercent.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(CircleShape),
+                        color = if (goal.isCompleted) DuoGreen else DuoGold,
+                        trackColor = Color(0xFF1E1726)
+                    )
+
+                    // Monthly Pacing Advice
+                    val monthlyTarget = goal.calculateMonthlyTargetSaving()
+                    if (!goal.isCompleted && monthlyTarget > 0) {
+                        Text(
+                            text = "💡 Save ≈ ${CurrencyFormatter.format(monthlyTarget)}/month to hit target on time!",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = DuoGoldDark,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // 1-Tap Deposit Shortcuts
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Add Deposit:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
+
+                        listOf(25.0, 50.0, 100.0).forEach { amount ->
+                            DuolingoPressableButton(
+                                onClick = { onAddContribution(goal.id, amount) },
+                                backgroundColor = DuoGreen,
+                                shadowColor = DuoGreenDark,
+                                cornerRadius = 8.dp,
+                                shadowHeight = 2.dp
+                            ) {
+                                Text("+ $${amount.toInt()}", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// 3. Categories Tab (Full Main & Sub Editing & Renaming)
 // -------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -636,7 +866,7 @@ private fun CategoriesTabContent(
 }
 
 // -------------------------------------------------------------
-// 3. Rules Tab (Auto-Run Toggle, Trigger All, Live Matches)
+// 4. Rules Tab (Auto-Run Toggle, Trigger All, Live Matches)
 // -------------------------------------------------------------
 
 @Composable
@@ -763,8 +993,118 @@ private fun RulesTabContent(
 }
 
 // -------------------------------------------------------------
-// Duolingo 3D Dialogs & Editors
+// Duolingo 3D Dialogs & Goal Editor
 // -------------------------------------------------------------
+
+@Composable
+fun DuolingoGoalDialog(
+    initialGoal: Goal?,
+    onDismiss: () -> Unit,
+    onSave: (Goal) -> Unit
+) {
+    var title by remember { mutableStateOf(initialGoal?.title ?: "") }
+    var targetText by remember { mutableStateOf(initialGoal?.targetAmount?.toString() ?: "1000.00") }
+    var currentSavedText by remember { mutableStateOf(initialGoal?.currentAmount?.toString() ?: "0.00") }
+    var category by remember { mutableStateOf(initialGoal?.category ?: "Savings") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialGoal != null) "Edit Financial Goal" else "🎯 New Financial Target", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Goal Title (e.g. Emergency Fund, Japan Trip)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = targetText,
+                    onValueChange = { targetText = it },
+                    label = { Text("Target Goal Amount ($)") },
+                    prefix = { Text("$") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = currentSavedText,
+                    onValueChange = { currentSavedText = it },
+                    label = { Text("Currently Saved / Deposited ($)") },
+                    prefix = { Text("$") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Text("Goal Category:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Savings", "Wants", "Investment").forEach { cat ->
+                        val isSelected = category.equals(cat, ignoreCase = true)
+                        Card(
+                            modifier = Modifier
+                                .clip(Shapes.small)
+                                .clickable { category = cat },
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGold else DuoCardDark)
+                        ) {
+                            Text(
+                                text = cat,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            DuolingoPressableButton(
+                onClick = {
+                    val target = targetText.toDoubleOrNull() ?: 0.0
+                    val current = currentSavedText.toDoubleOrNull() ?: 0.0
+                    if (title.isNotBlank() && target > 0) {
+                        val oneYearFromNow = (System.currentTimeMillis() / 1000) + (365 * 24 * 3600)
+                        val goal = (initialGoal ?: Goal(
+                            id = UUID.randomUUID().toString(),
+                            title = title.trim(),
+                            targetAmount = target,
+                            currentAmount = current,
+                            targetEpochSeconds = oneYearFromNow,
+                            category = category
+                        )).copy(
+                            title = title.trim(),
+                            targetAmount = target,
+                            currentAmount = current,
+                            category = category,
+                            isCompleted = current >= target
+                        )
+                        onSave(goal)
+                    }
+                },
+                backgroundColor = DuoGold,
+                shadowColor = DuoGoldDark,
+                cornerRadius = 10.dp
+            ) {
+                Text("Save Goal ➔", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            DuolingoPressableButton(
+                onClick = onDismiss,
+                backgroundColor = DuoCardDark,
+                shadowColor = DuoCardShadow,
+                cornerRadius = 10.dp
+            ) {
+                Text("Cancel", color = Color.White)
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

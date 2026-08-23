@@ -70,7 +70,7 @@ val appModule = module {
     viewModel { SimpleFinOnboardingViewModel(get(), get()) }
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RulesViewModel(get(), get()) }
-    viewModel { BudgetsViewModel(get(), get(), get(), get(), get()) }
+    viewModel { BudgetsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { InsightsViewModel(get()) }
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }

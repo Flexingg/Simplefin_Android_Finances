@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
+import com.randallengineering.finances.data.repository.GoalRepository
 import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Budget
 import com.randallengineering.finances.domain.model.BudgetCategoryType
 import com.randallengineering.finances.domain.model.CategoryHierarchy
+import com.randallengineering.finances.domain.model.Goal
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.usecase.BudgetCalculationResult
@@ -24,13 +26,16 @@ import kotlinx.coroutines.launch
 data class BudgetsUiState(
     val calculationResult: BudgetCalculationResult? = null,
     val categories: List<CategoryHierarchy> = emptyList(),
+    val goals: List<Goal> = emptyList(),
     val rules: List<Rule> = emptyList(),
     val incomeCategory: String = "Income",
     val isAutoRunRulesEnabled: Boolean = true,
-    val selectedTab: Int = 0, // 0 = Budgets & Pacing, 1 = Categories, 2 = Auto-Rules
+    val selectedTab: Int = 0, // 0 = Budgets, 1 = Goals, 2 = Categories, 3 = Auto-Rules
     val isLoading: Boolean = false,
     val isCreatingBudget: Boolean = false,
     val editingBudget: Budget? = null,
+    val isCreatingGoal: Boolean = false,
+    val editingGoal: Goal? = null,
     val isCreatingCategory: Boolean = false,
     val editingMainCategory: String? = null,
     val editingSubCategory: Pair<String, String>? = null, // Main -> Sub
@@ -49,6 +54,7 @@ class BudgetsViewModel(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: CategoryRepository,
     private val ruleRepository: RuleRepository,
+    private val goalRepository: GoalRepository,
     private val budgetCalculatorUseCase: BudgetCalculatorUseCase
 ) : ViewModel() {
 
@@ -71,7 +77,8 @@ class BudgetsViewModel(
                     categoryRepository.getCategoriesFlow(),
                     ruleRepository.getRulesFlow(),
                     categoryRepository.getIncomeCategoryFlow(),
-                    ruleRepository.getAutoRunEnabledFlow()
+                    ruleRepository.getAutoRunEnabledFlow(),
+                    goalRepository.getGoalsFlow()
                 )
             ) { resources ->
                 val budgetsRes = resources[0] as Resource<List<Budget>>
@@ -80,12 +87,14 @@ class BudgetsViewModel(
                 val rulesRes = resources[3] as Resource<List<Rule>>
                 val incomeCategoryName = (resources[4] as? String) ?: "Income"
                 val autoRunEnabled = (resources[5] as? Boolean) ?: true
+                val goalsRes = resources[6] as Resource<List<Goal>>
 
-                val isLoading = budgetsRes.isLoading || txRes.isLoading || catRes.isLoading || rulesRes.isLoading
+                val isLoading = budgetsRes.isLoading || txRes.isLoading || catRes.isLoading || rulesRes.isLoading || goalsRes.isLoading
                 val budgets = budgetsRes.getOrNull().orEmpty()
                 val transactions = txRes.getOrNull().orEmpty()
                 val categories = catRes.getOrNull().orEmpty()
                 val rawRules = rulesRes.getOrNull().orEmpty()
+                val goals = goalsRes.getOrNull().orEmpty()
 
                 currentTransactions = transactions
 
@@ -103,6 +112,7 @@ class BudgetsViewModel(
                     it.copy(
                         calculationResult = result,
                         categories = categories,
+                        goals = goals,
                         rules = rulesWithMatchCount,
                         incomeCategory = incomeCategoryName,
                         isAutoRunRulesEnabled = autoRunEnabled,
@@ -144,6 +154,14 @@ class BudgetsViewModel(
         _uiState.update { it.copy(editingBudget = budget, isCreatingBudget = false) }
     }
 
+    fun openCreateGoalDialog() {
+        _uiState.update { it.copy(isCreatingGoal = true, editingGoal = null) }
+    }
+
+    fun openEditGoalDialog(goal: Goal) {
+        _uiState.update { it.copy(editingGoal = goal, isCreatingGoal = false) }
+    }
+
     fun openCreateCategoryDialog() {
         _uiState.update { it.copy(isCreatingCategory = true) }
     }
@@ -173,6 +191,8 @@ class BudgetsViewModel(
             it.copy(
                 isCreatingBudget = false,
                 editingBudget = null,
+                isCreatingGoal = false,
+                editingGoal = null,
                 isCreatingCategory = false,
                 editingMainCategory = null,
                 editingSubCategory = null,
@@ -195,6 +215,30 @@ class BudgetsViewModel(
     fun deleteBudget(budgetId: String) {
         viewModelScope.launch {
             budgetRepository.deleteBudget(budgetId)
+        }
+    }
+
+    fun saveGoal(goal: Goal) {
+        viewModelScope.launch {
+            goalRepository.saveGoal(goal)
+            closeDialogs()
+        }
+    }
+
+    fun deleteGoal(goalId: String) {
+        viewModelScope.launch {
+            goalRepository.deleteGoal(goalId)
+        }
+    }
+
+    fun addGoalContribution(goalId: String, amount: Double) {
+        viewModelScope.launch {
+            val goal = _uiState.value.goals.find { it.id == goalId } ?: return@launch
+            val updated = goal.copy(
+                currentAmount = goal.currentAmount + amount,
+                isCompleted = (goal.currentAmount + amount) >= goal.targetAmount
+            )
+            goalRepository.saveGoal(updated)
         }
     }
 
