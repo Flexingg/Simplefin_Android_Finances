@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
 import com.randallengineering.finances.core.auth.SessionManager
+import com.randallengineering.finances.core.firebase.FirebaseEmulator.connectEmulatorIfPlaceholder
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.GoalRepository
 import com.randallengineering.finances.data.repository.RuleRepository
@@ -40,7 +41,9 @@ import com.randallengineering.finances.ui.screens.insights.InsightsViewModel
 
 val appModule = module {
     // Firebase instances
-    single { FirebaseFirestore.getInstance() }
+    // When running against the placeholder demo project, connect Firestore to the
+    // local emulator so the sync loop is testable without a real Firebase project.
+    single { FirebaseFirestore.getInstance().also { it.connectEmulatorIfPlaceholder() } }
     single { FirebaseStorage.getInstance() }
     single { FirebaseFunctions.getInstance() }
 
