@@ -184,6 +184,23 @@ const TOOL_DEFINITIONS = [
         }
     },
     {
+        name: 'update_auto_rule',
+        description: 'Edits an existing Auto-Rule by id and immediately re-runs all rules across every transaction so the change is applied to historical data.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                ruleId: { type: 'string', description: 'The id of the rule to edit.' },
+                pattern: { type: 'string', description: 'Optional new regex/text pattern to match merchant name / description.' },
+                category: { type: 'string', description: 'Optional new target main category.' },
+                subCategory: { type: 'string', description: 'Optional new target subcategory.' },
+                minAmount: { type: 'number', description: 'Optional new minimum transaction amount.' },
+                maxAmount: { type: 'number', description: 'Optional new maximum transaction amount.' },
+                isActive: { type: 'boolean', description: 'Enable or disable the rule.' }
+            },
+            required: ['ruleId']
+        }
+    },
+    {
         name: 'get_spending_trends',
         description: 'Fetches multi-month historical spending trends, month-over-month comparisons, savings rate history, and category breakdowns.',
         inputSchema: {
@@ -296,6 +313,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'run_all_rules':
                 result = tools.runAllRules();
+                break;
+            case 'update_auto_rule':
+                result = tools.updateAutoRule(safeArgs);
                 break;
             case 'get_spending_trends':
                 result = tools.getSpendingTrends(safeArgs);

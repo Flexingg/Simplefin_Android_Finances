@@ -20,9 +20,19 @@ export class FinanceStorage {
   private gamification: GamificationState;
   private config: SimpleFinConfig;
   private firestoreBridge: any = null;
+  private silentPush = false;
 
   setFirestoreBridge(bridge: any) {
     this.firestoreBridge = bridge;
+  }
+
+  /**
+   * When true, saveFile() writes to disk but does NOT push to Firestore.
+   * Used by FirestoreBridge when applying REMOTE changes (realtime listeners /
+   * bootstrap) so it doesn't echo its own writes back — breaking the sync loop.
+   */
+  setSilentPush(v: boolean) {
+    this.silentPush = v;
   }
 
   constructor(baseDir?: string) {
@@ -97,7 +107,10 @@ export class FinanceStorage {
       console.error(`Error saving ${filePath}:`, e);
     }
     // Mirror the write to shared Firestore (if sync is configured).
-    this.firestoreBridge?.pushFromFile(filePath, data).catch((e: any) => console.error('firestore push error', e));
+    // Skip when applying remote changes (silentPush) to avoid an echo loop.
+    if (!this.silentPush) {
+      this.firestoreBridge?.pushFromFile(filePath, data).catch((e: any) => console.error('firestore push error', e));
+    }
   }
 
   private seedDefaultCategoriesIfEmpty(): void {

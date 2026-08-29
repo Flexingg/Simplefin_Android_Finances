@@ -21,6 +21,16 @@ export class FirestoreBridge {
     isConfigured() {
         return !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_UID);
     }
+    /** Run a callback against local storage WITHOUT echoing back to Firestore. */
+    silent(fn) {
+        this.storage.setSilentPush(true);
+        try {
+            fn();
+        }
+        finally {
+            this.storage.setSilentPush(false);
+        }
+    }
     async connect(storage) {
         if (!this.isConfigured()) {
             console.error('[firestore-sync] disabled (set FIREBASE_PROJECT_ID + FIREBASE_UID)');
@@ -58,7 +68,7 @@ export class FirestoreBridge {
                 const snap = await this.db.collection(`users/${this.uid}/${col}`).get();
                 const docs = snap.docs.map((x) => ({ id: x.id, ...x.data() }));
                 if (docs.length > 0)
-                    fn(docs);
+                    this.silent(() => fn(docs));
             }
             catch (e) {
                 console.error(`[firestore-sync] bootstrap ${col} failed:`, e);
@@ -68,14 +78,14 @@ export class FirestoreBridge {
         try {
             const g = await this.db.doc(`users/${this.uid}/gamification/state`).get();
             if (g.exists)
-                storage.updateGamification(() => ({ ...storage.getGamification(), ...g.data() }));
+                this.silent(() => storage.updateGamification(() => ({ ...storage.getGamification(), ...g.data() })));
         }
         catch (e) { }
         // SimpleFIN config
         try {
             const p = await this.db.doc(`users/${this.uid}`).get();
             if (p.exists && p.data()?.simplefin) {
-                storage.saveConfig({ ...storage.getConfig(), ...p.data().simplefin });
+                this.silent(() => storage.saveConfig({ ...storage.getConfig(), ...p.data().simplefin }));
             }
         }
         catch (e) { }
@@ -92,14 +102,14 @@ export class FirestoreBridge {
             const un = this.db.collection(`users/${this.uid}/${col}`)
                 .onSnapshot((snap) => {
                 const docs = snap.docs.map((x) => ({ id: x.id, ...x.data() }));
-                fn(docs);
+                this.silent(() => fn(docs));
             }, (err) => console.error(`[firestore-sync] ${col} listener error:`, err));
             this.unsubs.push(un);
         }
         this.db.doc(`users/${this.uid}/gamification/state`)
             .onSnapshot((d) => {
             if (d.exists)
-                this.storage.updateGamification(() => ({ ...this.storage.getGamification(), ...d.data() }));
+                this.silent(() => this.storage.updateGamification(() => ({ ...this.storage.getGamification(), ...d.data() })));
         });
     }
     /** Push a written file's data to Firestore (called from FinanceStorage.saveFile). */

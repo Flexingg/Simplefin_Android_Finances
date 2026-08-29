@@ -16,6 +16,8 @@ export declare class FirestoreBridge {
     private storage;
     private unsubs;
     isConfigured(): boolean;
+    /** Run a callback against local storage WITHOUT echoing back to Firestore. */
+    private silent;
     connect(storage: FinanceStorage): Promise<boolean>;
     /** Pull existing Firestore data into storage (only overrides where remote has data). */
     private bootstrap;

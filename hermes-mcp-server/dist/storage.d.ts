@@ -16,7 +16,14 @@ export declare class FinanceStorage {
     private gamification;
     private config;
     private firestoreBridge;
+    private silentPush;
     setFirestoreBridge(bridge: any): void;
+    /**
+     * When true, saveFile() writes to disk but does NOT push to Firestore.
+     * Used by FirestoreBridge when applying REMOTE changes (realtime listeners /
+     * bootstrap) so it doesn't echo its own writes back — breaking the sync loop.
+     */
+    setSilentPush(v: boolean): void;
     constructor(baseDir?: string);
     private loadAll;
     private loadMap;

@@ -169,6 +169,27 @@ export declare class HermesFinanceTools {
         message: string;
         rule: Rule;
     };
+    /**
+     * Updates an existing Auto-Rule by id, then re-runs ALL rules across the
+     * historical ledger so the edit takes effect on already-logged transactions.
+     */
+    updateAutoRule(args: {
+        ruleId: string;
+        pattern?: string;
+        category?: string;
+        subCategory?: string;
+        minAmount?: number | null;
+        maxAmount?: number | null;
+        isActive?: boolean;
+    }): {
+        success: boolean;
+        message: string;
+        rule?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        rule: Rule;
+    };
     runAllRules(): {
         success: boolean;
         message: string;

@@ -318,6 +318,8 @@ export class HermesFinanceTools {
             isActive: true
         };
         this.storage.saveRule(newRule);
+        // Ensure the category/subcategory exist in the hierarchy (and sync to Firestore).
+        this.storage.addOrUpdateCategory(args.category, args.subCategory);
         // Apply rule to all historical transactions
         const txs = this.storage.getTransactions();
         const { updated, count } = FinanceEngine.applyRules(txs, [...rules, newRule]);
@@ -328,6 +330,45 @@ export class HermesFinanceTools {
             success: true,
             message: `Auto-rule "${args.pattern}" -> ${args.category} created and applied to ${count} transactions.`,
             rule: newRule
+        };
+    }
+    /**
+     * Updates an existing Auto-Rule by id, then re-runs ALL rules across the
+     * historical ledger so the edit takes effect on already-logged transactions.
+     */
+    updateAutoRule(args) {
+        const rule = this.storage.getRules().find(r => r.id === args.ruleId);
+        if (!rule) {
+            return { success: false, message: `Auto-rule ${args.ruleId} not found.` };
+        }
+        if (args.pattern !== undefined) {
+            rule.pattern = args.pattern.trim();
+            rule.name = rule.pattern;
+        }
+        if (args.category !== undefined)
+            rule.category = args.category;
+        if (args.subCategory !== undefined)
+            rule.subCategory = args.subCategory;
+        if (args.minAmount !== undefined)
+            rule.minAmount = args.minAmount;
+        if (args.maxAmount !== undefined)
+            rule.maxAmount = args.maxAmount;
+        if (args.isActive !== undefined)
+            rule.isActive = args.isActive;
+        this.storage.saveRule(rule);
+        if (rule.category)
+            this.storage.addOrUpdateCategory(rule.category, rule.subCategory || '');
+        // Re-run all rules across historical transactions so the edit is applied.
+        const txs = this.storage.getTransactions();
+        const rules = this.storage.getRules();
+        const { updated, count } = FinanceEngine.applyRules(txs, rules);
+        if (count > 0) {
+            this.storage.saveTransactions(updated);
+        }
+        return {
+            success: true,
+            message: `Auto-rule "${rule.pattern}" updated and re-applied to ${count} transactions.`,
+            rule
         };
     }
     runAllRules() {
