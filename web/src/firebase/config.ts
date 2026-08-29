@@ -6,12 +6,12 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 // placeholder. Swap in a real project by setting env vars (see .env.example)
 // or editing this object directly. The Firebase web config is NOT a secret.
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? 'AIzaSyDemoPlaceholder0000000000000000',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'randall-finances.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'randall-finances',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'randall-finances.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_SENDER_ID ?? '123456789012',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '1:123456789012:web:placeholder',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? 'AIzaSyCU_Ak-RIdUzJPkqWV37PXXT1ahXewa2JQ',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? 'jokarz-finance.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? 'jokarz-finance',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? 'jokarz-finance.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_SENDER_ID ?? '294176106740',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? '1:294176106740:web:b5d4e43f471404441fd6a1',
 };
 
 export const app = initializeApp(firebaseConfig);

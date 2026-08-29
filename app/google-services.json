@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "randall-finances-demo",
-    "storage_bucket": "randall-finances-demo.firebasestorage.app"
+    "project_number": "294176106740",
+    "project_id": "jokarz-finance",
+    "storage_bucket": "jokarz-finance.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890abcdef",
+        "mobilesdk_app_id": "1:294176106740:android:a17acf7f5100cfdb1fd6a1",
         "android_client_info": {
           "package_name": "com.randallengineering.finances"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "294176106740-nu1g011bpmp3tnas2e4oj7p77e82v5ir.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.randallengineering.finances",
+            "certificate_hash": "3c1198255f09d5a3d91174d3efb15d1eab7e5928"
+          }
+        },
+        {
+          "client_id": "294176106740-p8u398vh3mqmo69ael4fcs1n6g0pv5jp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDemoPlaceholderKeyForBuildResolutionOnly"
+          "current_key": "AIzaSyAXIVl7VH2ZtcCzD-Vr6CaAuVq-Sj7OCGE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "294176106740-p8u398vh3mqmo69ael4fcs1n6g0pv5jp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
