@@ -1,8 +1,10 @@
 package com.randallengineering.finances
 
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +19,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,13 +36,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.randallengineering.finances.core.auth.GoogleSignInScreen
+import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.theme.RandallFinancesTheme
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.ui.components.*
 import com.randallengineering.finances.ui.navigation.FinanceNavHost
+import org.koin.android.ext.android.inject
+import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
+
+    private val sessionManager: SessionManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,32 +57,61 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             RandallFinancesTheme {
-                val isBiometricEnabled = remember { BiometricAuthManager.isBiometricEnabled(this) }
-                var isAuthenticated by remember { mutableStateOf(!isBiometricEnabled) }
-                var authErrorMessage by remember { mutableStateOf<String?>(null) }
+                // Firebase Google auth gate (cross-platform sync)
+                val signedIn by sessionManager.isSignedIn.collectAsState()
+                var skippedSync by remember { mutableStateOf(false) }
+                val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-                fun triggerUnlock() {
-                    authErrorMessage = null
-                    BiometricAuthManager.promptBiometricUnlock(
-                        activity = this,
-                        onSuccess = { isAuthenticated = true },
-                        onError = { err -> authErrorMessage = err }
-                    )
-                }
-
-                LaunchedEffect(isBiometricEnabled) {
-                    if (isBiometricEnabled && !isAuthenticated) {
-                        triggerUnlock()
+                val googleLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    if (result.resultCode == RESULT_OK) {
+                        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                        scope.launch {
+                            sessionManager.handleSignInResult(task)
+                        }
                     }
                 }
 
-                if (isAuthenticated) {
-                    FinanceNavHost()
-                } else {
-                    BiometricLockScreen(
-                        errorMessage = authErrorMessage,
-                        onUnlockClick = { triggerUnlock() }
+                if (!signedIn && !skippedSync) {
+                    GoogleSignInScreen(
+                        onSignIn = {
+                            try {
+                                googleLauncher.launch(sessionManager.googleSignInClient.signInIntent)
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Google sign-in launch failed: ${e.message}")
+                            }
+                        },
+                        onSkip = { skippedSync = true }
                     )
+                } else {
+                    val isBiometricEnabled = remember { BiometricAuthManager.isBiometricEnabled(this) }
+                    var isAuthenticated by remember { mutableStateOf(!isBiometricEnabled) }
+                    var authErrorMessage by remember { mutableStateOf<String?>(null) }
+
+                    fun triggerUnlock() {
+                        authErrorMessage = null
+                        BiometricAuthManager.promptBiometricUnlock(
+                            activity = this,
+                            onSuccess = { isAuthenticated = true },
+                            onError = { err -> authErrorMessage = err }
+                        )
+                    }
+
+                    LaunchedEffect(isBiometricEnabled) {
+                        if (isBiometricEnabled && !isAuthenticated) {
+                            triggerUnlock()
+                        }
+                    }
+
+                    if (isAuthenticated) {
+                        FinanceNavHost()
+                    } else {
+                        BiometricLockScreen(
+                            errorMessage = authErrorMessage,
+                            onUnlockClick = { triggerUnlock() }
+                        )
+                    }
                 }
             }
         }

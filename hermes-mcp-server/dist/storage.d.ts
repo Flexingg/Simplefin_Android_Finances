@@ -15,6 +15,8 @@ export declare class FinanceStorage {
     private goals;
     private gamification;
     private config;
+    private firestoreBridge;
+    setFirestoreBridge(bridge: any): void;
     constructor(baseDir?: string);
     private loadAll;
     private loadMap;

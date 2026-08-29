@@ -2,6 +2,7 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.RuleEntity
 import com.randallengineering.finances.domain.model.Rule
@@ -68,7 +69,7 @@ class RuleRepository(
 
     private fun attachFirestoreListenerIfAvailable() {
         try {
-            firestore?.collection("rules")
+            firestore?.collection(SyncScope.path("rules"))
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
@@ -104,7 +105,7 @@ class RuleRepository(
             }
             saveLocalRules(current)
 
-            firestore?.collection("rules")
+            firestore?.collection(SyncScope.path("rules"))
                 ?.document(toSave.id)
                 ?.set(RuleEntity.fromDomain(toSave))
                 ?.await()
@@ -120,7 +121,7 @@ class RuleRepository(
             val current = _rulesFlow.value.filterNot { it.id == id }
             saveLocalRules(current)
 
-            firestore?.collection("rules")
+            firestore?.collection(SyncScope.path("rules"))
                 ?.document(id)
                 ?.delete()
                 ?.await()
@@ -137,7 +138,7 @@ class RuleRepository(
             firestore?.let { db ->
                 val batch = db.batch()
                 rules.forEach { r ->
-                    val docRef = db.collection("rules").document(r.id)
+                    val docRef = db.collection(SyncScope.path("rules")).document(r.id)
                     batch.set(docRef, RuleEntity.fromDomain(r))
                 }
                 batch.commit().await()

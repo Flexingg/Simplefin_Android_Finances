@@ -16,6 +16,10 @@ export class FinanceStorage {
     goals = new Map();
     gamification;
     config;
+    firestoreBridge = null;
+    setFirestoreBridge(bridge) {
+        this.firestoreBridge = bridge;
+    }
     constructor(baseDir) {
         this.dataDir = baseDir || path.join(process.cwd(), 'data');
         if (!fs.existsSync(this.dataDir)) {
@@ -83,6 +87,8 @@ export class FinanceStorage {
         catch (e) {
             console.error(`Error saving ${filePath}:`, e);
         }
+        // Mirror the write to shared Firestore (if sync is configured).
+        this.firestoreBridge?.pushFromFile(filePath, data).catch((e) => console.error('firestore push error', e));
     }
     seedDefaultCategoriesIfEmpty() {
         if (this.categories.size === 0) {

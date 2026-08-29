@@ -19,12 +19,40 @@ class AppStateService {
     completedQuests: ['inbox_zero_reviewer']
   };
   private listeners: Set<Listener> = new Set();
+  private _dirty = false;
 
   constructor() {
     this.loadFromStorage();
     if (this.transactions.length === 0) {
       this.seedInitialData();
     }
+  }
+
+  /**
+   * Hydrate state from a remote source (Firestore snapshot). Does NOT mark the
+   * state dirty, so the sync bridge won't echo the change back to the server.
+   */
+  hydrate(partial: {
+    transactions?: Transaction[];
+    budgets?: Budget[];
+    rules?: Rule[];
+    categories?: CategoryHierarchy[];
+    goals?: Goal[];
+    gamification?: GamificationState;
+  }) {
+    if (partial.transactions) this.transactions = partial.transactions;
+    if (partial.budgets) this.budgets = partial.budgets;
+    if (partial.rules) this.rules = partial.rules;
+    if (partial.categories) this.categories = partial.categories;
+    if (partial.goals) this.goals = partial.goals;
+    if (partial.gamification) this.gamification = partial.gamification;
+    this._dirty = false;
+    this.notify();
+  }
+
+  /** True if the last change was a local mutation (should be pushed to Firestore). */
+  isDirty(): boolean {
+    return this._dirty;
   }
 
   private loadFromStorage() {
@@ -58,6 +86,7 @@ class AppStateService {
       localStorage.setItem('rf_goals', JSON.stringify(this.goals));
       localStorage.setItem('rf_gamification', JSON.stringify(this.gamification));
     } catch (e) {}
+    this._dirty = true;
     this.notify();
   }
 

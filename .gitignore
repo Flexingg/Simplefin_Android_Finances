@@ -13,3 +13,19 @@
 node_modules/
 functions/node_modules/
 functions/lib/
+
+# Firebase emulator logs
+*-debug.log
+
+# Android release artifacts (already published)
+/release
+
+# MCP server runtime data (keep categories.json, ignore the rest)
+/hermes-mcp-server/data/*
+!/hermes-mcp-server/data/categories.json
+
+# Electron-builder outputs inside web/dist (web/dist web assets ARE tracked)
+/web/dist/linux-unpacked
+/web/dist/*.zip
+/web/dist/builder-debug.yml
+

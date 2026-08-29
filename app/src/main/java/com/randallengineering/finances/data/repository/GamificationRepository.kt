@@ -2,6 +2,7 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.gamification.DefaultEquipmentCatalog
 import com.randallengineering.finances.domain.model.EquipmentItem
 import com.randallengineering.finances.domain.model.EquipmentSlot
@@ -44,7 +45,7 @@ class GamificationRepository(
         prefs.edit().putString("gamification_state", json.encodeToString(state)).apply()
 
         try {
-            firestore?.collection("gamification")?.document("user_state")
+            firestore?.collection(SyncScope.path("gamification"))?.document("user_state")
                 ?.set(state)
         } catch (e: Exception) {
             // Offline fallback

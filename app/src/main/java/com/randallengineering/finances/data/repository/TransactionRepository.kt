@@ -2,6 +2,7 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.google.firebase.firestore.Query
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.TransactionEntity
@@ -62,7 +63,7 @@ class TransactionRepository(
 
     private fun attachFirestoreListenerIfAvailable() {
         try {
-            firestore?.collection("transactions")
+            firestore?.collection(SyncScope.path("transactions"))
                 ?.orderBy("postedEpochSeconds", Query.Direction.DESCENDING)
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
@@ -108,7 +109,7 @@ class TransactionRepository(
             saveLocalTransactions(current)
 
             // Sync to Firestore if available
-            firestore?.collection("transactions")
+            firestore?.collection(SyncScope.path("transactions"))
                 ?.document(transaction.id)
                 ?.set(TransactionEntity.fromDomain(transaction))
                 ?.await()
@@ -129,7 +130,7 @@ class TransactionRepository(
             firestore?.let { db ->
                 val batch = db.batch()
                 transactions.forEach { tx ->
-                    val docRef = db.collection("transactions").document(tx.id)
+                    val docRef = db.collection(SyncScope.path("transactions")).document(tx.id)
                     batch.set(docRef, TransactionEntity.fromDomain(tx))
                 }
                 batch.commit().await()
@@ -150,7 +151,7 @@ class TransactionRepository(
                 current[index] = updated
                 saveLocalTransactions(current)
 
-                firestore?.collection("transactions")
+                firestore?.collection(SyncScope.path("transactions"))
                     ?.document(transactionId)
                     ?.update("receiptUrls", updated.receiptUrls)
                     ?.await()
@@ -176,7 +177,7 @@ class TransactionRepository(
                 saveLocalTransactions(current)
 
                 val splitEntities = splits.map { TransactionSplitEntity.fromDomain(it) }
-                firestore?.collection("transactions")
+                firestore?.collection(SyncScope.path("transactions"))
                     ?.document(transactionId)
                     ?.update(
                         mapOf(
@@ -197,7 +198,7 @@ class TransactionRepository(
             val current = _transactionsFlow.value.filterNot { it.id == id }
             saveLocalTransactions(current)
 
-            firestore?.collection("transactions")
+            firestore?.collection(SyncScope.path("transactions"))
                 ?.document(id)
                 ?.delete()
                 ?.await()

@@ -72,9 +72,11 @@ dependencies {
     // Firebase BOM
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.functions.ktx)
     implementation(libs.firebase.vertexai)
+    implementation(libs.google.play.services.auth)
 
     // Koin Dependency Injection
     implementation(libs.koin.android)

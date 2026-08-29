@@ -9,10 +9,16 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { FinanceStorage } from './storage.js';
 import { HermesFinanceTools } from './tools.js';
+import { FirestoreBridge } from './firestore.js';
 
 // Initialize storage and tools
 const storage = new FinanceStorage();
 const tools = new HermesFinanceTools(storage);
+
+// Shared cross-platform sync via Firestore (enabled with FIREBASE_PROJECT_ID + FIREBASE_UID)
+const firestoreBridge = new FirestoreBridge();
+storage.setFirestoreBridge(firestoreBridge);
+firestoreBridge.connect(storage);
 
 // Define tool specifications
 const TOOL_DEFINITIONS: Tool[] = [
@@ -345,6 +351,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
+  // Await Firestore bootstrap so shared data is loaded before serving tools.
+  await firestoreBridge.connect(storage);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Hermes Financial Controller MCP Server running on stdio');

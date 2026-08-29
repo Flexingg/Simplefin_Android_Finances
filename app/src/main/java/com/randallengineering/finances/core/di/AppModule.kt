@@ -3,6 +3,7 @@ package com.randallengineering.finances.core.di
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.storage.FirebaseStorage
+import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.GoalRepository
 import com.randallengineering.finances.data.repository.RuleRepository
@@ -42,6 +43,9 @@ val appModule = module {
     single { FirebaseFirestore.getInstance() }
     single { FirebaseStorage.getInstance() }
     single { FirebaseFunctions.getInstance() }
+
+    // Cross-platform auth + sync scope
+    single { SessionManager(androidContext()) }
 
     // Repositories (with local storage & offline fallback)
     single { TransactionRepository(androidContext(), getOrNull()) }

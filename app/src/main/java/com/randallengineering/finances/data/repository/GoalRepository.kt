@@ -2,6 +2,7 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.google.firebase.firestore.Query
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.GoalEntity
@@ -51,7 +52,7 @@ class GoalRepository(
 
     private fun attachFirestoreListenerIfAvailable() {
         try {
-            firestore?.collection("goals")
+            firestore?.collection(SyncScope.path("goals"))
                 ?.orderBy("targetEpochSeconds", Query.Direction.ASCENDING)
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
@@ -86,7 +87,7 @@ class GoalRepository(
         saveLocalGoals(current)
 
         try {
-            firestore?.collection("goals")?.document(safeGoal.id)
+            firestore?.collection(SyncScope.path("goals"))?.document(safeGoal.id)
                 ?.set(GoalEntity.fromDomain(safeGoal))
         } catch (e: Exception) {
             // Ignored if offline
@@ -99,7 +100,7 @@ class GoalRepository(
         saveLocalGoals(current)
 
         try {
-            firestore?.collection("goals")?.document(goalId)?.delete()
+            firestore?.collection(SyncScope.path("goals"))?.document(goalId)?.delete()
         } catch (e: Exception) {
             // Ignored if offline
         }

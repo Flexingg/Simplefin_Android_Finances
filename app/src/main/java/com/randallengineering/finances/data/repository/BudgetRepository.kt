@@ -2,6 +2,7 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.model.BudgetEntity
 import com.randallengineering.finances.domain.model.Budget
@@ -58,7 +59,7 @@ class BudgetRepository(
 
     private fun attachFirestoreListenerIfAvailable() {
         try {
-            firestore?.collection("budgets")
+            firestore?.collection(SyncScope.path("budgets"))
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
@@ -96,7 +97,7 @@ class BudgetRepository(
             }
             saveLocalBudgets(current)
 
-            firestore?.collection("budgets")
+            firestore?.collection(SyncScope.path("budgets"))
                 ?.document(toSave.id)
                 ?.set(BudgetEntity.fromDomain(toSave))
                 ?.await()
@@ -112,7 +113,7 @@ class BudgetRepository(
             val current = _budgetsFlow.value.filterNot { it.id == id }
             saveLocalBudgets(current)
 
-            firestore?.collection("budgets")
+            firestore?.collection(SyncScope.path("budgets"))
                 ?.document(id)
                 ?.delete()
                 ?.await()
