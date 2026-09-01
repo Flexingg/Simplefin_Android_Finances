@@ -37,7 +37,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.randallengineering.finances.core.auth.GoogleSignInScreen
+import com.randallengineering.finances.core.auth.AuthScreen
+import com.randallengineering.finances.core.auth.AuthViewModel
 import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.theme.RandallFinancesTheme
@@ -46,6 +47,7 @@ import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.ui.components.*
 import com.randallengineering.finances.ui.navigation.FinanceNavHost
 import org.koin.android.ext.android.inject
+import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
@@ -58,25 +60,24 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             RandallFinancesTheme {
-                // Firebase Google auth gate (cross-platform sync)
+                // Firebase auth gate (cross-platform sync): email/password + Google
                 val signedIn by sessionManager.isSignedIn.collectAsState()
                 var skippedSync by remember { mutableStateOf(false) }
-                val scope = androidx.compose.runtime.rememberCoroutineScope()
+                val authViewModel: AuthViewModel = koinViewModel()
 
                 val googleLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
                 ) { result ->
                     if (result.resultCode == RESULT_OK) {
                         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                        scope.launch {
-                            sessionManager.handleSignInResult(task)
-                        }
+                        authViewModel.handleGoogleResult(task)
                     }
                 }
 
                 if (!signedIn && !skippedSync) {
-                    GoogleSignInScreen(
-                        onSignIn = {
+                    AuthScreen(
+                        viewModel = authViewModel,
+                        onGoogleSignIn = {
                             try {
                                 googleLauncher.launch(sessionManager.googleSignInClient.signInIntent)
                             } catch (e: Exception) {

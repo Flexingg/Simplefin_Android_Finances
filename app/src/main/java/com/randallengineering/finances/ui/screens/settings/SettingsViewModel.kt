@@ -3,6 +3,7 @@ package com.randallengineering.finances.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
@@ -24,6 +25,8 @@ data class SettingsUiState(
     val isSyncing: Boolean = false,
     val isBiometricEnabled: Boolean = false,
     val isBiometricAvailable: Boolean = false,
+    val accountEmail: String? = null,
+    val accountDisplayName: String? = null,
     val successMessage: String? = null,
     val errorMessage: String? = null,
     val errList: List<String> = emptyList()
@@ -32,7 +35,8 @@ data class SettingsUiState(
 class SettingsViewModel(
     private val simpleFinSyncUseCase: SimpleFinSyncUseCase,
     private val simpleFinRepository: SimpleFinRepository,
-    private val amazonRepository: AmazonRepository
+    private val amazonRepository: AmazonRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -40,6 +44,19 @@ class SettingsViewModel(
 
     init {
         observeConfig()
+        _uiState.update {
+            it.copy(
+                accountEmail = sessionManager.email,
+                accountDisplayName = sessionManager.displayName
+            )
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            sessionManager.signOut()
+            _uiState.update { it.copy(accountEmail = null, accountDisplayName = null) }
+        }
     }
 
     fun initSecurityState(context: Context) {

@@ -48,7 +48,7 @@ val appModule = module {
     single { FirebaseFunctions.getInstance() }
 
     // Cross-platform auth + sync scope
-    single { SessionManager(androidContext()) }
+    single { SessionManager(androidContext(), get()) }
 
     // Repositories (with local storage & offline fallback)
     single { TransactionRepository(androidContext(), getOrNull()) }
@@ -73,6 +73,7 @@ val appModule = module {
     single { AiChatbotUseCase(get()) }
 
     // ViewModels
+    viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get()) }
     viewModel { SimpleFinOnboardingViewModel(get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.dashboard.DashboardViewModel(get()) }
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get()) }
@@ -82,6 +83,6 @@ val appModule = module {
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
-    viewModel { SettingsViewModel(get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
 }
