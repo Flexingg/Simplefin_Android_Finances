@@ -171,7 +171,7 @@ class SessionManager(
 
     private fun isValidEmail(e: String) = android.util.Patterns.EMAIL_ADDRESS.matcher(e.trim()).matches()
 
-    private fun googleSignInErrorMessage(e: ApiException): String = when (e.statusCode) {
+    fun googleSignInErrorMessage(e: ApiException): String = when (e.statusCode) {
         10 -> "Developer console is not configured correctly. Rebuild with the SHA-1 registered in Firebase and enable the Google sign-in provider."
         12500, 12501 -> "Google Sign-In failed or was cancelled. Please try again."
         else -> e.localizedMessage ?: "Google sign-in failed (${e.statusCode})."

@@ -68,9 +68,14 @@ class MainActivity : FragmentActivity() {
                 val googleLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
                 ) { result ->
-                    if (result.resultCode == RESULT_OK) {
-                        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    // Always inspect the result — a Google error or cancel still
+                    // carries a diagnosable intent, and we must surface it instead
+                    // of silently doing nothing.
+                    val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                    if (task != null) {
                         authViewModel.handleGoogleResult(task)
+                    } else {
+                        authViewModel.setError("Google sign-in was cancelled or returned no result.")
                     }
                 }
 

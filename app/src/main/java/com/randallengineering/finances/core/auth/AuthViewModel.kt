@@ -3,6 +3,7 @@ package com.randallengineering.finances.core.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import com.randallengineering.finances.core.network.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +70,16 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
                 else -> _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    /** Surfaces a Google sign-in exception (e.g. status 10 config error, cancelled). */
+    fun handleGoogleSignInError(e: ApiException) {
+        _uiState.value = _uiState.value.copy(isLoading = false, error = session.googleSignInErrorMessage(e))
+    }
+
+    /** Set a visible error message directly (e.g. Google sign-in cancelled). */
+    fun setError(message: String) {
+        _uiState.value = _uiState.value.copy(isLoading = false, error = message)
     }
 
     fun signOut() {
