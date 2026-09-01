@@ -6,6 +6,15 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+import java.util.Properties
+// Deterministic release signing: the keystore is committed so local and CI
+// builds always produce the SAME certificate (Google Sign-In requires a stable,
+// Firebase-registered fingerprint).
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) load(f.inputStream())
+}
+
 android {
     namespace = "com.randallengineering.finances"
     compileSdk = 35
@@ -14,8 +23,8 @@ android {
         applicationId = "com.randallengineering.finances"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.2"
+        versionCode = 5
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -23,12 +32,21 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(keystoreProperties.getProperty("STORE_FILE") ?: "../keystore/release.jks")
+            storePassword = keystoreProperties.getProperty("STORE_PASSWORD")
+            keyAlias = keystoreProperties.getProperty("KEY_ALIAS")
+            keyPassword = keystoreProperties.getProperty("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Sign with the debug key so CI-published release APKs are
-            // installable for sideloading (matches the Jokarz release flow).
-            signingConfig = signingConfigs.getByName("debug")
+            // Deterministic signing (same cert local + CI). Uses the committed
+            // release keystore; falls back to the debug key only if it's missing.
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
