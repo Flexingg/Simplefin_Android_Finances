@@ -41,6 +41,7 @@ import com.randallengineering.finances.core.auth.GoogleSignInScreen
 import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.theme.RandallFinancesTheme
+import com.randallengineering.finances.core.theme.*
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.ui.components.*
 import com.randallengineering.finances.ui.navigation.FinanceNavHost
@@ -138,13 +139,13 @@ fun BiometricLockScreen(
             Box(
                 modifier = Modifier
                     .size(96.dp)
-                    .background(DuoGreen.copy(alpha = 0.15f), shape = Shapes.large),
+                    .background(FinanceGreen.copy(alpha = 0.15f), shape = Shapes.large),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Lock,
                     contentDescription = "Lock",
-                    tint = DuoGreen,
+                    tint = FinanceGreen,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -179,10 +180,10 @@ fun BiometricLockScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onUnlockClick,
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 12.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {

@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.randallengineering.finances.core.theme.*
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.CategoryHierarchy
@@ -63,7 +64,7 @@ data class QuickSplitRow(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DuolingoSplitModal(
+fun SplitTransactionModal(
     transaction: Transaction,
     categories: List<CategoryHierarchy>,
     onDismiss: () -> Unit,
@@ -112,7 +113,7 @@ fun DuolingoSplitModal(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     // Option to choose main category only
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = {
                             if (rowIndex in splitRows.indices) {
                                 splitRows[rowIndex] = splitRows[rowIndex].copy(
@@ -123,8 +124,8 @@ fun DuolingoSplitModal(
                             selectedCategoryForSub = null
                             selectedRowForCategory = null
                         },
-                        backgroundColor = DuoCardDark,
-                        shadowColor = DuoCardShadow,
+                        backgroundColor = FinanceCardDark,
+                        shadowColor = FinanceCardShadow,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("General / All ${cat.mainCategory}", color = Color.White, fontWeight = FontWeight.Bold)
@@ -138,7 +139,7 @@ fun DuolingoSplitModal(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             cat.subCategories.forEach { sub ->
-                                DuolingoPressableButton(
+                                FinanceButton(
                                     onClick = {
                                         if (rowIndex in splitRows.indices) {
                                             splitRows[rowIndex] = splitRows[rowIndex].copy(
@@ -149,8 +150,8 @@ fun DuolingoSplitModal(
                                         selectedCategoryForSub = null
                                         selectedRowForCategory = null
                                     },
-                                    backgroundColor = DuoGreen,
-                                    shadowColor = DuoGreenDark,
+                                    backgroundColor = FinanceGreen,
+                                    shadowColor = FinanceGreenDark,
                                     cornerRadius = 8.dp,
                                     shadowHeight = 2.dp
                                 ) {
@@ -162,10 +163,10 @@ fun DuolingoSplitModal(
                 }
             },
             confirmButton = {
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = { selectedCategoryForSub = null },
-                    backgroundColor = DuoCardDark,
-                    shadowColor = DuoCardShadow,
+                    backgroundColor = FinanceCardDark,
+                    shadowColor = FinanceCardShadow,
                     cornerRadius = 10.dp
                 ) {
                     Text("Back", color = Color.White)
@@ -211,7 +212,7 @@ fun DuolingoSplitModal(
                                         selectedRowForCategory = null
                                     }
                                 },
-                            colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -231,7 +232,7 @@ fun DuolingoSplitModal(
                                     Text(
                                         text = "${cat.subCategories.size} subs ➔",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = DuoGreen,
+                                        color = FinanceGreen,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -241,10 +242,10 @@ fun DuolingoSplitModal(
                 }
             },
             confirmButton = {
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = { selectedRowForCategory = null },
-                    backgroundColor = DuoCardDark,
-                    shadowColor = DuoCardShadow,
+                    backgroundColor = FinanceCardDark,
+                    shadowColor = FinanceCardShadow,
                     cornerRadius = 10.dp
                 ) {
                     Text("Cancel", color = Color.White)
@@ -263,7 +264,7 @@ fun DuolingoSplitModal(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.CallSplit, contentDescription = null, tint = DuoGreen, modifier = Modifier.size(24.dp))
+                    Icon(Icons.AutoMirrored.Filled.CallSplit, contentDescription = null, tint = FinanceGreen, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Quick Split (${CurrencyFormatter.format(totalAmount)})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 }
@@ -279,15 +280,15 @@ fun DuolingoSplitModal(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = {
                             val half = totalAmount / 2.0
                             splitRows.clear()
                             splitRows.add(QuickSplitRow(category = defaultCat, subCategory = defaultSub, amountText = String.format("%.2f", half)))
                             splitRows.add(QuickSplitRow(category = "Groceries", subCategory = "", amountText = String.format("%.2f", totalAmount - half)))
                         },
-                        backgroundColor = DuoCardDark,
-                        shadowColor = DuoCardShadow,
+                        backgroundColor = FinanceCardDark,
+                        shadowColor = FinanceCardShadow,
                         cornerRadius = 10.dp,
                         shadowHeight = 3.dp,
                         modifier = Modifier.weight(1f)
@@ -295,7 +296,7 @@ fun DuolingoSplitModal(
                         Text("½ 50/50 Split", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
 
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = {
                             val third = totalAmount / 3.0
                             splitRows.clear()
@@ -303,8 +304,8 @@ fun DuolingoSplitModal(
                             splitRows.add(QuickSplitRow(category = "Groceries", subCategory = "", amountText = String.format("%.2f", third)))
                             splitRows.add(QuickSplitRow(category = "Shopping", subCategory = "", amountText = String.format("%.2f", totalAmount - (third * 2))))
                         },
-                        backgroundColor = DuoCardDark,
-                        shadowColor = DuoCardShadow,
+                        backgroundColor = FinanceCardDark,
+                        shadowColor = FinanceCardShadow,
                         cornerRadius = 10.dp,
                         shadowHeight = 3.dp,
                         modifier = Modifier.weight(1f)
@@ -325,7 +326,7 @@ fun DuolingoSplitModal(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(Shapes.small)
-                                .background(DuoCardDark.copy(alpha = 0.5f))
+                                .background(FinanceCardDark.copy(alpha = 0.5f))
                                 .padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -340,7 +341,7 @@ fun DuolingoSplitModal(
                                         .weight(1.3f)
                                         .clip(Shapes.small)
                                         .clickable { selectedRowForCategory = index },
-                                    colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                                    colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
@@ -375,7 +376,7 @@ fun DuolingoSplitModal(
                                         onClick = { splitRows.removeAt(index) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete Row", tint = DuoRed)
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete Row", tint = FinanceRed)
                                     }
                                 }
                             }
@@ -400,13 +401,13 @@ fun DuolingoSplitModal(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = {
                             val rem = if (remaining > 0) String.format("%.2f", remaining) else "0.00"
                             splitRows.add(QuickSplitRow(category = "Shopping", subCategory = "", amountText = rem))
                         },
-                        backgroundColor = DuoCardDark,
-                        shadowColor = DuoCardShadow,
+                        backgroundColor = FinanceCardDark,
+                        shadowColor = FinanceCardShadow,
                         cornerRadius = 8.dp,
                         shadowHeight = 2.dp
                     ) {
@@ -416,7 +417,7 @@ fun DuolingoSplitModal(
                     }
 
                     if (remaining > 0.01) {
-                        DuolingoPressableButton(
+                        FinanceButton(
                             onClick = {
                                 if (splitRows.isNotEmpty()) {
                                     val last = splitRows.last()
@@ -424,8 +425,8 @@ fun DuolingoSplitModal(
                                     splitRows[splitRows.lastIndex] = last.copy(amountText = String.format("%.2f", lastVal + remaining))
                                 }
                             },
-                            backgroundColor = DuoGold,
-                            shadowColor = DuoGoldDark,
+                            backgroundColor = FinanceAmber,
+                            shadowColor = FinanceAmberDark,
                             cornerRadius = 8.dp,
                             shadowHeight = 2.dp
                         ) {
@@ -441,7 +442,7 @@ fun DuolingoSplitModal(
                     modifier = Modifier.fillMaxWidth(),
                     shape = Shapes.medium,
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isBalanced) DuoGreen.copy(alpha = 0.15f) else DuoRed.copy(alpha = 0.15f)
+                        containerColor = if (isBalanced) FinanceGreen.copy(alpha = 0.15f) else FinanceRed.copy(alpha = 0.15f)
                     )
                 ) {
                     Row(
@@ -452,7 +453,7 @@ fun DuolingoSplitModal(
                         Text(
                             text = if (isBalanced) "✅ Fully Balanced ($${String.format("%.2f", currentAllocated)})" else "Remaining: ${CurrencyFormatter.format(remaining)}",
                             fontWeight = FontWeight.Bold,
-                            color = if (isBalanced) DuoGreenDark else DuoRedDark,
+                            color = if (isBalanced) FinanceGreenDark else FinanceRedDark,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -460,7 +461,7 @@ fun DuolingoSplitModal(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     if (isBalanced) {
                         val splits = splitRows.mapNotNull { row ->
@@ -481,18 +482,18 @@ fun DuolingoSplitModal(
                     }
                 },
                 enabled = isBalanced,
-                backgroundColor = if (isBalanced) DuoGreen else Color.Gray,
-                shadowColor = if (isBalanced) DuoGreenDark else Color.DarkGray,
+                backgroundColor = if (isBalanced) FinanceGreen else Color.Gray,
+                shadowColor = if (isBalanced) FinanceGreenDark else Color.DarkGray,
                 cornerRadius = 10.dp
             ) {
                 Text("Confirm Split", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)

@@ -72,17 +72,17 @@ import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Goal
 import com.randallengineering.finances.domain.model.MainCategoryBudgetGroup
 import com.randallengineering.finances.domain.model.Rule
-import com.randallengineering.finances.ui.components.DuoBlue
-import com.randallengineering.finances.ui.components.DuoBlueDark
-import com.randallengineering.finances.ui.components.DuoCardDark
-import com.randallengineering.finances.ui.components.DuoCardShadow
-import com.randallengineering.finances.ui.components.DuoGold
-import com.randallengineering.finances.ui.components.DuoGoldDark
-import com.randallengineering.finances.ui.components.DuoGreen
-import com.randallengineering.finances.ui.components.DuoGreenDark
-import com.randallengineering.finances.ui.components.DuoRed
-import com.randallengineering.finances.ui.components.DuoRedDark
-import com.randallengineering.finances.ui.components.DuolingoPressableButton
+import com.randallengineering.finances.core.theme.FinanceAmber
+import com.randallengineering.finances.core.theme.FinanceAmberDark
+import com.randallengineering.finances.core.theme.FinanceBlue
+import com.randallengineering.finances.core.theme.FinanceBlueDark
+import com.randallengineering.finances.core.theme.FinanceCardDark
+import com.randallengineering.finances.core.theme.FinanceCardShadow
+import com.randallengineering.finances.core.theme.FinanceGreen
+import com.randallengineering.finances.core.theme.FinanceGreenDark
+import com.randallengineering.finances.core.theme.FinanceRed
+import com.randallengineering.finances.core.theme.FinanceRedDark
+import com.randallengineering.finances.ui.components.FinanceButton
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -110,7 +110,7 @@ fun BudgetsScreen(
 
     // 1. Create / Edit Budget Dialog
     if (uiState.isCreatingBudget || uiState.editingBudget != null) {
-        DuolingoSubcategoryBudgetDialog(
+        SubcategoryBudgetDialog(
             initialBudget = uiState.editingBudget,
             categories = uiState.categories,
             totalMtdIncome = totalMtdIncome,
@@ -122,7 +122,7 @@ fun BudgetsScreen(
 
     // 2. Create / Edit Goal Dialog
     if (uiState.isCreatingGoal || uiState.editingGoal != null) {
-        DuolingoGoalDialog(
+        GoalDialog(
             initialGoal = uiState.editingGoal,
             onDismiss = { viewModel.closeDialogs() },
             onSave = { viewModel.saveGoal(it) }
@@ -131,7 +131,7 @@ fun BudgetsScreen(
 
     // 3. Change Income Category Dialog
     if (uiState.isChangingIncomeCategory) {
-        DuolingoIncomeCategoryDialog(
+        IncomeCategoryDialog(
             currentIncomeCategory = uiState.incomeCategory,
             categories = uiState.categories,
             onDismiss = { viewModel.closeDialogs() },
@@ -145,7 +145,7 @@ fun BudgetsScreen(
 
     // 4. Create Main Category Dialog
     if (uiState.isCreatingCategory) {
-        DuolingoCategoryDialog(
+        CategoryDialog(
             onDismiss = { viewModel.closeDialogs() },
             onSave = { main, sub -> viewModel.addCategory(main, sub) }
         )
@@ -153,7 +153,7 @@ fun BudgetsScreen(
 
     // 5. Edit Main Category Dialog
     if (uiState.editingMainCategory != null) {
-        DuolingoRenameCategoryDialog(
+        RenameCategoryDialog(
             currentName = uiState.editingMainCategory!!,
             title = "✏️ Rename Main Category",
             onDismiss = { viewModel.closeDialogs() },
@@ -164,7 +164,7 @@ fun BudgetsScreen(
     // 6. Edit Subcategory Dialog
     if (uiState.editingSubCategory != null) {
         val (mainCat, oldSub) = uiState.editingSubCategory!!
-        DuolingoRenameCategoryDialog(
+        RenameCategoryDialog(
             currentName = oldSub,
             title = "✏️ Rename Subcategory in \"$mainCat\"",
             onDismiss = { viewModel.closeDialogs() },
@@ -174,7 +174,7 @@ fun BudgetsScreen(
 
     // 7. Add Subcategory Dialog
     if (uiState.selectedMainCategoryForSub != null) {
-        DuolingoSubCategoryDialog(
+        SubCategoryDialog(
             mainCategory = uiState.selectedMainCategoryForSub!!,
             onDismiss = { viewModel.closeDialogs() },
             onSave = { sub -> viewModel.addSubCategory(uiState.selectedMainCategoryForSub!!, sub) }
@@ -183,7 +183,7 @@ fun BudgetsScreen(
 
     // 8. Create / Edit Rule Dialog
     if (uiState.isCreatingRule || uiState.editingRule != null) {
-        DuolingoRuleDialog(
+        RuleDialog(
             initialRule = uiState.editingRule,
             categories = uiState.categories,
             nextPriority = uiState.rules.size + 1,
@@ -206,7 +206,7 @@ fun BudgetsScreen(
                 .clip(Shapes.large)
                 .clickable { viewModel.openChangeIncomeCategoryDialog() },
             shape = Shapes.large,
-            colors = CardDefaults.cardColors(containerColor = if (hasIncomeCategory) DuoGreen.copy(alpha = 0.15f) else DuoGold.copy(alpha = 0.18f))
+            colors = CardDefaults.cardColors(containerColor = if (hasIncomeCategory) FinanceGreen.copy(alpha = 0.15f) else FinanceAmber.copy(alpha = 0.18f))
         ) {
             Row(
                 modifier = Modifier
@@ -219,7 +219,7 @@ fun BudgetsScreen(
                     Text("💰", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("Income Category: ${uiState.incomeCategory}", fontWeight = FontWeight.Bold, color = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark, style = MaterialTheme.typography.labelMedium)
+                        Text("Income Category: ${uiState.incomeCategory}", fontWeight = FontWeight.Bold, color = if (hasIncomeCategory) FinanceGreenDark else FinanceAmberDark, style = MaterialTheme.typography.labelMedium)
                         Text(
                             text = if (hasIncomeCategory) "MTD Income: ${CurrencyFormatter.format(totalMtdIncome)}" else "⚠️ Tap to set up your Income category",
                             style = MaterialTheme.typography.bodySmall,
@@ -228,10 +228,10 @@ fun BudgetsScreen(
                     }
                 }
 
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = { viewModel.openChangeIncomeCategoryDialog() },
-                    backgroundColor = if (hasIncomeCategory) DuoGreen else DuoGold,
-                    shadowColor = if (hasIncomeCategory) DuoGreenDark else DuoGoldDark,
+                    backgroundColor = if (hasIncomeCategory) FinanceGreen else FinanceAmber,
+                    shadowColor = if (hasIncomeCategory) FinanceGreenDark else FinanceAmberDark,
                     cornerRadius = 8.dp,
                     shadowHeight = 2.dp
                 ) {
@@ -245,31 +245,31 @@ fun BudgetsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.medium,
-                colors = CardDefaults.cardColors(containerColor = DuoBlue.copy(alpha = 0.2f))
+                colors = CardDefaults.cardColors(containerColor = FinanceBlue.copy(alpha = 0.2f))
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("⚡ ${uiState.ruleExecutionMessage}", color = DuoBlueDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                    Text("⚡ ${uiState.ruleExecutionMessage}", color = FinanceBlueDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Dismiss",
-                        tint = DuoBlueDark,
+                        tint = FinanceBlueDark,
                         modifier = Modifier.size(16.dp).clickable { viewModel.closeDialogs() }
                     )
                 }
             }
         }
 
-        // Duolingo 4-Tab Bar (Budgets, Goals, Categories, Rules)
+        // 4-Tab Bar (Budgets, Goals, Categories, Rules)
         TabRow(
             selectedTabIndex = uiState.selectedTab,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(Shapes.medium),
-            containerColor = DuoCardDark,
+            containerColor = FinanceCardDark,
             contentColor = Color.White
         ) {
             Tab(
@@ -349,10 +349,10 @@ private fun SubcategoryBudgetsTabContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onAddBudget,
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
@@ -387,7 +387,7 @@ private fun SubcategoryBudgetsTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
             ) {
                 Column(
                     modifier = Modifier
@@ -430,7 +430,7 @@ private fun SubcategoryBudgetsTabContent(
                             Text(
                                 text = if (group.isOverBudget) "⚠️ Over!" else "Health: ${(group.healthPercent * 100).toInt()}%",
                                 fontWeight = FontWeight.Bold,
-                                color = if (group.isOverBudget) DuoRed else DuoGreen,
+                                color = if (group.isOverBudget) FinanceRed else FinanceGreen,
                                 style = MaterialTheme.typography.labelSmall
                             )
                             Spacer(Modifier.width(6.dp))
@@ -449,7 +449,7 @@ private fun SubcategoryBudgetsTabContent(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(CircleShape),
-                        color = if (group.isOverBudget) DuoRed else DuoGreen,
+                        color = if (group.isOverBudget) FinanceRed else FinanceGreen,
                         trackColor = Color(0xFF1E1726)
                     )
 
@@ -492,24 +492,24 @@ private fun SubcategoryBudgetsTabContent(
                                             Text(
                                                 text = "Spent: ${CurrencyFormatter.format(subBudget.spentAmount)} / $dualMetricLabel",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = if (subBudget.isOverBudget) DuoRed else Color.White.copy(alpha = 0.7f)
+                                                color = if (subBudget.isOverBudget) FinanceRed else Color.White.copy(alpha = 0.7f)
                                             )
                                             if (subBudget.rolloverEnabled) {
                                                 Text(
                                                     text = "🔄 Rollover: +${CurrencyFormatter.format(subBudget.rolloverAmount)} from last mo (Limit: ${CurrencyFormatter.format(subBudget.effectiveTargetAmount)})",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = DuoGold
+                                                    color = FinanceAmber
                                                 )
                                             }
                                         }
 
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             IconButton(onClick = { onEditBudget(subBudget) }, modifier = Modifier.size(32.dp)) {
-                                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = FinanceBlue, modifier = Modifier.size(16.dp))
                                             }
                                             IconButton(onClick = { onDeleteBudget(subBudget.id) }, modifier = Modifier.size(32.dp)) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = FinanceRed, modifier = Modifier.size(16.dp))
                                             }
                                         }
                                     }
@@ -524,7 +524,7 @@ private fun SubcategoryBudgetsTabContent(
 }
 
 // -------------------------------------------------------------
-// 2. Goals Tab (Duolingo 3D Savings & Wants Vault)
+// 2. Goals Tab (Savings & Wants Vault)
 // -------------------------------------------------------------
 
 @Composable
@@ -547,7 +547,7 @@ private fun GoalsTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoGold.copy(alpha = 0.15f))
+                colors = CardDefaults.cardColors(containerColor = FinanceAmber.copy(alpha = 0.15f))
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -556,7 +556,7 @@ private fun GoalsTabContent(
                     Text("🏦", style = MaterialTheme.typography.displaySmall)
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Savings Vault & Targets", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
+                        Text("Savings Vault & Targets", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceAmberDark)
                         Text(
                             text = "Total Saved: ${CurrencyFormatter.format(totalSaved)} / ${CurrencyFormatter.format(totalTarget)} (${if (totalTarget > 0) ((totalSaved / totalTarget) * 100).toInt() else 0}%)",
                             style = MaterialTheme.typography.bodySmall,
@@ -569,10 +569,10 @@ private fun GoalsTabContent(
         }
 
         item {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onAddGoal,
-                backgroundColor = DuoGold,
-                shadowColor = DuoGoldDark,
+                backgroundColor = FinanceAmber,
+                shadowColor = FinanceAmberDark,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
@@ -614,7 +614,7 @@ private fun GoalsTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
             ) {
                 Column(
                     modifier = Modifier
@@ -637,7 +637,7 @@ private fun GoalsTabContent(
                                 )
                                 if (goal.isCompleted) {
                                     Spacer(Modifier.width(6.dp))
-                                    Text("✅ Completed!", style = MaterialTheme.typography.labelSmall, color = DuoGreen, fontWeight = FontWeight.Bold)
+                                    Text("✅ Completed!", style = MaterialTheme.typography.labelSmall, color = FinanceGreen, fontWeight = FontWeight.Bold)
                                 }
                             }
                             Text(
@@ -649,10 +649,10 @@ private fun GoalsTabContent(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { onEditGoal(goal) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = FinanceBlue, modifier = Modifier.size(16.dp))
                             }
                             IconButton(onClick = { onDeleteGoal(goal.id) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = FinanceRed, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -672,7 +672,7 @@ private fun GoalsTabContent(
                         Text(
                             text = "${goal.progressPercent.toInt()}% Saved",
                             fontWeight = FontWeight.Bold,
-                            color = if (goal.isCompleted) DuoGreen else DuoGold,
+                            color = if (goal.isCompleted) FinanceGreen else FinanceAmber,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -683,7 +683,7 @@ private fun GoalsTabContent(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(CircleShape),
-                        color = if (goal.isCompleted) DuoGreen else DuoGold,
+                        color = if (goal.isCompleted) FinanceGreen else FinanceAmber,
                         trackColor = Color(0xFF1E1726)
                     )
 
@@ -693,7 +693,7 @@ private fun GoalsTabContent(
                         Text(
                             text = "💡 Save ≈ ${CurrencyFormatter.format(monthlyTarget)}/month to hit target on time!",
                             style = MaterialTheme.typography.bodySmall,
-                            color = DuoGoldDark,
+                            color = FinanceAmberDark,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -709,10 +709,10 @@ private fun GoalsTabContent(
                         Text("Add Deposit:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
 
                         listOf(25.0, 50.0, 100.0).forEach { amount ->
-                            DuolingoPressableButton(
+                            FinanceButton(
                                 onClick = { onAddContribution(goal.id, amount) },
-                                backgroundColor = DuoGreen,
-                                shadowColor = DuoGreenDark,
+                                backgroundColor = FinanceGreen,
+                                shadowColor = FinanceGreenDark,
                                 cornerRadius = 8.dp,
                                 shadowHeight = 2.dp
                             ) {
@@ -752,10 +752,10 @@ private fun CategoriesTabContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = onAddCategory,
-                    backgroundColor = DuoBlue,
-                    shadowColor = DuoBlueDark,
+                    backgroundColor = FinanceBlue,
+                    shadowColor = FinanceBlueDark,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
@@ -777,7 +777,7 @@ private fun CategoriesTabContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Quest Progress:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                    Text("${categories.size}/6 Main  •  $totalSubs/25 Subs", fontWeight = FontWeight.Bold, color = if (categories.size >= 6 && totalSubs >= 25) DuoGreenDark else DuoBlue)
+                    Text("${categories.size}/6 Main  •  $totalSubs/25 Subs", fontWeight = FontWeight.Bold, color = if (categories.size >= 6 && totalSubs >= 25) FinanceGreenDark else FinanceBlue)
                 }
             }
         }
@@ -786,7 +786,7 @@ private fun CategoriesTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
             ) {
                 Column(
                     modifier = Modifier
@@ -808,17 +808,17 @@ private fun CategoriesTabContent(
                             )
                             Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { onEditCategory(cat.mainCategory) }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit category", tint = DuoBlue, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Edit, contentDescription = "Edit category", tint = FinanceBlue, modifier = Modifier.size(14.dp))
                             }
                             IconButton(onClick = { onDeleteCategory(cat.mainCategory) }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete category", tint = DuoRed, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Delete, contentDescription = "Delete category", tint = FinanceRed, modifier = Modifier.size(14.dp))
                             }
                         }
 
-                        DuolingoPressableButton(
+                        FinanceButton(
                             onClick = { onAddSubCategory(cat.mainCategory) },
-                            backgroundColor = DuoGreen,
-                            shadowColor = DuoGreenDark,
+                            backgroundColor = FinanceGreen,
+                            shadowColor = FinanceGreenDark,
                             cornerRadius = 8.dp,
                             shadowHeight = 2.dp
                         ) {
@@ -856,7 +856,7 @@ private fun CategoriesTabContent(
                                         Icon(
                                             Icons.Default.Edit,
                                             contentDescription = "Rename subcategory",
-                                            tint = DuoBlue,
+                                            tint = FinanceBlue,
                                             modifier = Modifier
                                                 .size(14.dp)
                                                 .clickable { onEditSubCategory(cat.mainCategory, sub) }
@@ -865,7 +865,7 @@ private fun CategoriesTabContent(
                                         Icon(
                                             Icons.Default.Close,
                                             contentDescription = "Delete subcategory",
-                                            tint = DuoRed,
+                                            tint = FinanceRed,
                                             modifier = Modifier
                                                 .size(14.dp)
                                                 .clickable { onDeleteSubCategory(cat.mainCategory, sub) }
@@ -904,7 +904,7 @@ private fun RulesTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
@@ -922,16 +922,16 @@ private fun RulesTabContent(
                         Switch(
                             checked = isAutoRunEnabled,
                             onCheckedChange = onToggleAutoRun,
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = DuoGreen)
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = FinanceGreen)
                         )
                     }
 
                     HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
 
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = onRunAllRules,
-                        backgroundColor = DuoGreen,
-                        shadowColor = DuoGreenDark,
+                        backgroundColor = FinanceGreen,
+                        shadowColor = FinanceGreenDark,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
@@ -943,10 +943,10 @@ private fun RulesTabContent(
         }
 
         item {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onAddRule,
-                backgroundColor = DuoBlue,
-                shadowColor = DuoBlueDark,
+                backgroundColor = FinanceBlue,
+                shadowColor = FinanceBlueDark,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
@@ -979,7 +979,7 @@ private fun RulesTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
             ) {
                 Row(
                     modifier = Modifier
@@ -990,16 +990,16 @@ private fun RulesTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("If description contains \"${rule.pattern}\"", fontWeight = FontWeight.Bold, color = Color.White)
-                        Text("➔ Assign: ${rule.category}${if (rule.subCategory.isNotBlank()) " > ${rule.subCategory}" else ""}", style = MaterialTheme.typography.bodySmall, color = DuoGreen, fontWeight = FontWeight.Medium)
-                        Text("🔥 ${rule.matchCount} transactions currently matched", style = MaterialTheme.typography.labelSmall, color = DuoGoldDark, fontWeight = FontWeight.Bold)
+                        Text("➔ Assign: ${rule.category}${if (rule.subCategory.isNotBlank()) " > ${rule.subCategory}" else ""}", style = MaterialTheme.typography.bodySmall, color = FinanceGreen, fontWeight = FontWeight.Medium)
+                        Text("🔥 ${rule.matchCount} transactions currently matched", style = MaterialTheme.typography.labelSmall, color = FinanceAmberDark, fontWeight = FontWeight.Bold)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { onEditRule(rule) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = DuoBlue)
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = FinanceBlue)
                         }
                         IconButton(onClick = { onDeleteRule(rule.id) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = DuoRed)
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = FinanceRed)
                         }
                     }
                 }
@@ -1009,12 +1009,12 @@ private fun RulesTabContent(
 }
 
 // -------------------------------------------------------------
-// Duolingo 3D Dialogs & Goal Editor
+// Dialogs & Goal Editor
 // -------------------------------------------------------------
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DuolingoGoalDialog(
+fun GoalDialog(
     initialGoal: Goal?,
     onDismiss: () -> Unit,
     onSave: (Goal) -> Unit
@@ -1079,7 +1079,7 @@ fun DuolingoGoalDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Target Completion Date:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                        Text(targetDateFormatted, fontWeight = FontWeight.Black, color = DuoGoldDark, style = MaterialTheme.typography.bodySmall)
+                        Text(targetDateFormatted, fontWeight = FontWeight.Black, color = FinanceAmberDark, style = MaterialTheme.typography.bodySmall)
                     }
 
                     FlowRow(
@@ -1103,7 +1103,7 @@ fun DuolingoGoalDialog(
                                         val now = System.currentTimeMillis() / 1000
                                         targetEpochSeconds = maxOf(now + (30L * 24 * 3600), targetEpochSeconds + delta)
                                     },
-                                colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                                colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                             ) {
                                 Text(
                                     text = label,
@@ -1127,7 +1127,7 @@ fun DuolingoGoalDialog(
                             modifier = Modifier
                                 .clip(Shapes.small)
                                 .clickable { category = cat },
-                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGold else DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceAmber else FinanceCardDark)
                         ) {
                             Text(
                                 text = cat,
@@ -1142,7 +1142,7 @@ fun DuolingoGoalDialog(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     val target = targetText.toDoubleOrNull() ?: 0.0
                     val current = currentSavedText.toDoubleOrNull() ?: 0.0
@@ -1165,18 +1165,18 @@ fun DuolingoGoalDialog(
                         onSave(goal)
                     }
                 },
-                backgroundColor = DuoGold,
-                shadowColor = DuoGoldDark,
+                backgroundColor = FinanceAmber,
+                shadowColor = FinanceAmberDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Save Goal ➔", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)
@@ -1187,7 +1187,7 @@ fun DuolingoGoalDialog(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DuolingoSubcategoryBudgetDialog(
+fun SubcategoryBudgetDialog(
     initialBudget: Budget?,
     categories: List<CategoryHierarchy>,
     totalMtdIncome: Double,
@@ -1227,7 +1227,7 @@ fun DuolingoSubcategoryBudgetDialog(
                                     selectedMain = cat.mainCategory
                                     selectedSub = cat.subCategories.firstOrNull().orEmpty()
                                 },
-                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceGreen else FinanceCardDark)
                         ) {
                             Text(
                                 text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
@@ -1256,7 +1256,7 @@ fun DuolingoSubcategoryBudgetDialog(
                                 modifier = Modifier
                                     .clip(Shapes.small)
                                     .clickable { selectedSub = sub },
-                                colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceGreen else FinanceCardDark)
                             ) {
                                 Text(
                                     text = sub,
@@ -1275,10 +1275,10 @@ fun DuolingoSubcategoryBudgetDialog(
                 // 3. Budget Type (Fixed $ vs % Income)
                 Text("3. Choose Budget Limit Type:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = { budgetType = BudgetCategoryType.FIXED },
-                        backgroundColor = if (budgetType == BudgetCategoryType.FIXED) DuoGreen else DuoCardDark,
-                        shadowColor = if (budgetType == BudgetCategoryType.FIXED) DuoGreenDark else DuoCardShadow,
+                        backgroundColor = if (budgetType == BudgetCategoryType.FIXED) FinanceGreen else FinanceCardDark,
+                        shadowColor = if (budgetType == BudgetCategoryType.FIXED) FinanceGreenDark else FinanceCardShadow,
                         cornerRadius = 10.dp,
                         shadowHeight = 3.dp,
                         modifier = Modifier.weight(1f)
@@ -1286,10 +1286,10 @@ fun DuolingoSubcategoryBudgetDialog(
                         Text("💵 Fixed Monthly ($)", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                     }
 
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = { budgetType = BudgetCategoryType.PERCENT_INCOME },
-                        backgroundColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) DuoBlue else DuoCardDark,
-                        shadowColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) DuoBlueDark else DuoCardShadow,
+                        backgroundColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) FinanceBlue else FinanceCardDark,
+                        shadowColor = if (budgetType == BudgetCategoryType.PERCENT_INCOME) FinanceBlueDark else FinanceCardShadow,
                         cornerRadius = 10.dp,
                         shadowHeight = 3.dp,
                         modifier = Modifier.weight(1f)
@@ -1320,7 +1320,7 @@ fun DuolingoSubcategoryBudgetDialog(
                         Text(
                             text = "≈ ${CurrencyFormatter.format(calculatedTargetFromPercent)}/mo based on MTD Income (${CurrencyFormatter.format(totalMtdIncome)})",
                             style = MaterialTheme.typography.bodySmall,
-                            color = DuoBlueDark,
+                            color = FinanceBlueDark,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1349,10 +1349,10 @@ fun DuolingoSubcategoryBudgetDialog(
                 }
 
                 if (rolloverEnabled && initialBudget != null) {
-                    DuolingoPressableButton(
+                    FinanceButton(
                         onClick = { onResetRollover(initialBudget) },
-                        backgroundColor = DuoGoldDark,
-                        shadowColor = DuoCardShadow,
+                        backgroundColor = FinanceAmberDark,
+                        shadowColor = FinanceCardShadow,
                         cornerRadius = 8.dp,
                         shadowHeight = 2.dp,
                         modifier = Modifier.fillMaxWidth()
@@ -1363,7 +1363,7 @@ fun DuolingoSubcategoryBudgetDialog(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     val target = if (budgetType == BudgetCategoryType.FIXED) {
                         fixedAmountText.toDoubleOrNull() ?: 0.0
@@ -1391,18 +1391,18 @@ fun DuolingoSubcategoryBudgetDialog(
                         onSave(budget)
                     }
                 },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Save Budget", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)
@@ -1413,7 +1413,7 @@ fun DuolingoSubcategoryBudgetDialog(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DuolingoIncomeCategoryDialog(
+fun IncomeCategoryDialog(
     currentIncomeCategory: String,
     categories: List<CategoryHierarchy>,
     onDismiss: () -> Unit,
@@ -1443,7 +1443,7 @@ fun DuolingoIncomeCategoryDialog(
                                 .clickable {
                                     onSelect(cat.mainCategory)
                                 },
-                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceGreen else FinanceCardDark)
                         ) {
                             Text(
                                 text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
@@ -1458,10 +1458,10 @@ fun DuolingoIncomeCategoryDialog(
 
                 HorizontalDivider()
 
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = onCreateIncomeCategory,
-                    backgroundColor = DuoBlue,
-                    shadowColor = DuoBlueDark,
+                    backgroundColor = FinanceBlue,
+                    shadowColor = FinanceBlueDark,
                     cornerRadius = 10.dp,
                     shadowHeight = 3.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -1473,10 +1473,10 @@ fun DuolingoIncomeCategoryDialog(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Close", color = Color.White)
@@ -1486,7 +1486,7 @@ fun DuolingoIncomeCategoryDialog(
 }
 
 @Composable
-fun DuolingoRenameCategoryDialog(
+fun RenameCategoryDialog(
     currentName: String,
     title: String,
     onDismiss: () -> Unit,
@@ -1507,24 +1507,24 @@ fun DuolingoRenameCategoryDialog(
             )
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     if (newName.isNotBlank()) {
                         onSave(newName.trim())
                     }
                 },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)
@@ -1535,7 +1535,7 @@ fun DuolingoRenameCategoryDialog(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DuolingoRuleDialog(
+fun RuleDialog(
     initialRule: Rule?,
     categories: List<CategoryHierarchy>,
     nextPriority: Int,
@@ -1570,7 +1570,7 @@ fun DuolingoRuleDialog(
                     Text(
                         text = "🔥 Matches $liveMatches existing transactions right now!",
                         fontWeight = FontWeight.Bold,
-                        color = DuoGoldDark,
+                        color = FinanceAmberDark,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -1590,7 +1590,7 @@ fun DuolingoRuleDialog(
                                     selectedMain = cat.mainCategory
                                     selectedSub = cat.subCategories.firstOrNull().orEmpty()
                                 },
-                            colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceGreen else FinanceCardDark)
                         ) {
                             Text(
                                 text = "${getCategoryEmoji(cat.mainCategory)} ${cat.mainCategory}",
@@ -1616,7 +1616,7 @@ fun DuolingoRuleDialog(
                                 modifier = Modifier
                                     .clip(Shapes.small)
                                     .clickable { selectedSub = if (isSelected) "" else sub },
-                                colors = CardDefaults.cardColors(containerColor = if (isSelected) DuoGreen else DuoCardDark)
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) FinanceGreen else FinanceCardDark)
                             ) {
                                 Text(
                                     text = sub,
@@ -1632,7 +1632,7 @@ fun DuolingoRuleDialog(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     if (pattern.isNotBlank() && selectedMain.isNotBlank()) {
                         val rule = (initialRule ?: Rule(
@@ -1650,18 +1650,18 @@ fun DuolingoRuleDialog(
                         onSave(rule)
                     }
                 },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Save & Apply Rule ➔", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)
@@ -1671,7 +1671,7 @@ fun DuolingoRuleDialog(
 }
 
 @Composable
-fun DuolingoCategoryDialog(
+fun CategoryDialog(
     onDismiss: () -> Unit,
     onSave: (String, String?) -> Unit
 ) {
@@ -1698,24 +1698,24 @@ fun DuolingoCategoryDialog(
             }
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     if (mainName.isNotBlank()) {
                         onSave(mainName.trim(), subName.trim().ifBlank { null })
                     }
                 },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Create Category", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)
@@ -1725,7 +1725,7 @@ fun DuolingoCategoryDialog(
 }
 
 @Composable
-fun DuolingoSubCategoryDialog(
+fun SubCategoryDialog(
     mainCategory: String,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
@@ -1744,24 +1744,24 @@ fun DuolingoSubCategoryDialog(
             )
         },
         confirmButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = {
                     if (subName.isNotBlank()) {
                         onSave(subName.trim())
                     }
                 },
-                backgroundColor = DuoGreen,
-                shadowColor = DuoGreenDark,
+                backgroundColor = FinanceGreen,
+                shadowColor = FinanceGreenDark,
                 cornerRadius = 10.dp
             ) {
                 Text("Add Subcategory", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            DuolingoPressableButton(
+            FinanceButton(
                 onClick = onDismiss,
-                backgroundColor = DuoCardDark,
-                shadowColor = DuoCardShadow,
+                backgroundColor = FinanceCardDark,
+                shadowColor = FinanceCardShadow,
                 cornerRadius = 10.dp
             ) {
                 Text("Cancel", color = Color.White)

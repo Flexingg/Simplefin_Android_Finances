@@ -63,17 +63,17 @@ import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.core.util.DateUtils
 import com.randallengineering.finances.domain.model.CategoryHierarchy
 import com.randallengineering.finances.domain.model.Transaction
-import com.randallengineering.finances.ui.components.DuoBlue
-import com.randallengineering.finances.ui.components.DuoBlueDark
-import com.randallengineering.finances.ui.components.DuoCardDark
-import com.randallengineering.finances.ui.components.DuoCardShadow
-import com.randallengineering.finances.ui.components.DuoGold
-import com.randallengineering.finances.ui.components.DuoGoldDark
-import com.randallengineering.finances.ui.components.DuoGreen
-import com.randallengineering.finances.ui.components.DuoGreenDark
-import com.randallengineering.finances.ui.components.DuoRed
-import com.randallengineering.finances.ui.components.DuoRedDark
-import com.randallengineering.finances.ui.components.DuolingoPressableButton
+import com.randallengineering.finances.core.theme.FinanceAmber
+import com.randallengineering.finances.core.theme.FinanceAmberDark
+import com.randallengineering.finances.core.theme.FinanceBlue
+import com.randallengineering.finances.core.theme.FinanceBlueDark
+import com.randallengineering.finances.core.theme.FinanceCardDark
+import com.randallengineering.finances.core.theme.FinanceCardShadow
+import com.randallengineering.finances.core.theme.FinanceGreen
+import com.randallengineering.finances.core.theme.FinanceGreenDark
+import com.randallengineering.finances.core.theme.FinanceRed
+import com.randallengineering.finances.core.theme.FinanceRedDark
+import com.randallengineering.finances.ui.components.FinanceButton
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.abs
 
@@ -131,7 +131,7 @@ fun ActionQueueScreen(
                 }
             },
             confirmButton = {
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = {
                         if (newCatName.isNotBlank()) {
                             viewModel.addCustomCategory(newCatName.trim(), newSubName.trim().ifBlank { null })
@@ -141,18 +141,18 @@ fun ActionQueueScreen(
                             showAddCategoryDialog = false
                         }
                     },
-                    backgroundColor = DuoGreen,
-                    shadowColor = DuoGreenDark,
+                    backgroundColor = FinanceGreen,
+                    shadowColor = FinanceGreenDark,
                     cornerRadius = 10.dp
                 ) {
                     Text("Save & Select", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = { showAddCategoryDialog = false },
-                    backgroundColor = DuoCardDark,
-                    shadowColor = DuoCardShadow,
+                    backgroundColor = FinanceCardDark,
+                    shadowColor = FinanceCardShadow,
                     cornerRadius = 10.dp
                 ) {
                     Text("Cancel", color = Color.White)
@@ -206,7 +206,7 @@ fun ActionQueueScreen(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(Shapes.small),
-                    color = DuoGreen,
+                    color = FinanceGreen,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
@@ -216,18 +216,18 @@ fun ActionQueueScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = Shapes.medium,
-                    colors = CardDefaults.cardColors(containerColor = DuoGreen.copy(alpha = 0.2f))
+                    colors = CardDefaults.cardColors(containerColor = FinanceGreen.copy(alpha = 0.2f))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(uiState.lastRuleCreatedMessage!!, color = DuoGreenDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        Text(uiState.lastRuleCreatedMessage!!, color = FinanceGreenDark, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Dismiss",
-                            tint = DuoGreenDark,
+                            tint = FinanceGreenDark,
                             modifier = Modifier.size(16.dp).clickable { viewModel.clearRuleMessage() }
                         )
                     }
@@ -236,7 +236,7 @@ fun ActionQueueScreen(
 
             LaunchedEffect(uiState.isSessionComplete) {
                 if (uiState.isSessionComplete) {
-                    com.randallengineering.finances.core.audio.DuolingoSoundEffects.playLevelUpFanfare(context)
+                    com.randallengineering.finances.core.audio.FinanceSoundEffects.playLevelUpFanfare(context)
                 }
             }
 
@@ -266,10 +266,10 @@ fun ActionQueueScreen(
 
                         Spacer(Modifier.height(10.dp))
 
-                        DuolingoPressableButton(
+                        FinanceButton(
                             onClick = { viewModel.resetSession() },
-                            backgroundColor = DuoGreen,
-                            shadowColor = DuoGreenDark,
+                            backgroundColor = FinanceGreen,
+                            shadowColor = FinanceGreenDark,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.Replay, contentDescription = null, tint = Color.White)
@@ -287,13 +287,13 @@ fun ActionQueueScreen(
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = if (isUncategorized) DuoGold.copy(alpha = 0.18f) else DuoGreen.copy(alpha = 0.15f))
+                        colors = CardDefaults.cardColors(containerColor = if (isUncategorized) FinanceAmber.copy(alpha = 0.18f) else FinanceGreen.copy(alpha = 0.15f))
                     ) {
                         Text(
                             text = if (isUncategorized) "Choose a category or generate an Auto-Rule to categorize this transaction." else "Is this category correct? Confirm, search, or create an Auto-Rule below.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (isUncategorized) DuoGoldDark else DuoGreenDark,
+                            color = if (isUncategorized) FinanceAmberDark else FinanceGreenDark,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -349,13 +349,13 @@ fun ActionQueueScreen(
                         val isAmazon = currentTx.originalDesc.contains("Amazon", ignoreCase = true) || currentTx.payee.contains("Amazon", ignoreCase = true)
 
                         if (isAmazon) {
-                            DuolingoPressableButton(
+                            FinanceButton(
                                 onClick = {
                                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.amazon.com/gp/your-account/order-history"))
                                     context.startActivity(intent)
                                 },
-                                backgroundColor = DuoGold,
-                                shadowColor = DuoGoldDark,
+                                backgroundColor = FinanceAmber,
+                                shadowColor = FinanceAmberDark,
                                 cornerRadius = 8.dp,
                                 shadowHeight = 2.dp,
                                 modifier = Modifier.fillMaxWidth()
@@ -373,7 +373,7 @@ fun ActionQueueScreen(
                             Card(
                                 shape = Shapes.small,
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isUncategorized) DuoRed.copy(alpha = 0.15f) else DuoGreen.copy(alpha = 0.15f)
+                                    containerColor = if (isUncategorized) FinanceRed.copy(alpha = 0.15f) else FinanceGreen.copy(alpha = 0.15f)
                                 )
                             ) {
                                 Row(
@@ -381,13 +381,13 @@ fun ActionQueueScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     if (isUncategorized) {
-                                        Icon(Icons.Default.Warning, contentDescription = null, tint = DuoRedDark, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Warning, contentDescription = null, tint = FinanceRedDark, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
                                     }
                                     Text(
                                         text = if (isUncategorized) "Uncategorized (Required)" else "${currentTx.category}${if (currentTx.subCategory.isNotBlank()) " > ${currentTx.subCategory}" else ""}",
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isUncategorized) DuoRedDark else DuoGreenDark,
+                                        color = if (isUncategorized) FinanceRedDark else FinanceGreenDark,
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
@@ -396,7 +396,7 @@ fun ActionQueueScreen(
                             // Quick Split Button
                             var showSplitModal by remember { mutableStateOf(false) }
                             if (showSplitModal) {
-                                com.randallengineering.finances.ui.components.DuolingoSplitModal(
+                                com.randallengineering.finances.ui.components.SplitTransactionModal(
                                     transaction = currentTx,
                                     categories = uiState.availableCategories,
                                     onDismiss = { showSplitModal = false },
@@ -407,10 +407,10 @@ fun ActionQueueScreen(
                                 )
                             }
 
-                            DuolingoPressableButton(
+                            FinanceButton(
                                 onClick = { showSplitModal = true },
-                                backgroundColor = DuoBlue,
-                                shadowColor = DuoBlueDark,
+                                backgroundColor = FinanceBlue,
+                                shadowColor = FinanceBlueDark,
                                 cornerRadius = 8.dp,
                                 shadowHeight = 2.dp
                             ) {
@@ -426,7 +426,7 @@ fun ActionQueueScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = Shapes.large,
-                    colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                    colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -440,7 +440,7 @@ fun ActionQueueScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Bolt, contentDescription = null, tint = DuoGold, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Bolt, contentDescription = null, tint = FinanceAmber, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     text = "Auto-Rule Generator",
@@ -477,12 +477,12 @@ fun ActionQueueScreen(
                                 Text(
                                     text = "🔥 Matches $liveRuleMatches existing transactions in database",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = DuoGoldDark,
+                                    color = FinanceAmberDark,
                                     fontWeight = FontWeight.Bold
                                 )
 
                                 if (!isUncategorized) {
-                                    DuolingoPressableButton(
+                                    FinanceButton(
                                         onClick = {
                                             viewModel.createAutoRuleAndCategorize(
                                                 tx = currentTx,
@@ -492,8 +492,8 @@ fun ActionQueueScreen(
                                                 note = txNote
                                             )
                                         },
-                                        backgroundColor = DuoGold,
-                                        shadowColor = DuoGoldDark,
+                                        backgroundColor = FinanceAmber,
+                                        shadowColor = FinanceAmberDark,
                                         cornerRadius = 10.dp,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -520,7 +520,7 @@ fun ActionQueueScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("🔍 Quick Search Categories & Subs (e.g. fu, gas, coffee)...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = DuoGreen) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = FinanceGreen) },
                     trailingIcon = {
                         if (searchQuery.isNotBlank()) {
                             IconButton(onClick = { searchQuery = "" }) {
@@ -540,7 +540,7 @@ fun ActionQueueScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = Shapes.medium,
-                            colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                            colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                         ) {
                             Text(
                                 text = "No category or subcategory found for \"$searchQuery\". Tap '+ New Category' below to create it!",
@@ -563,13 +563,13 @@ fun ActionQueueScreen(
                         ) {
                             searchResults.forEach { result ->
                                 val emoji = getCategoryEmoji(result.mainCategory)
-                                DuolingoPressableButton(
+                                FinanceButton(
                                     onClick = {
                                         viewModel.editCategory(currentTx, result.mainCategory, result.subCategory, txNote)
                                         searchQuery = ""
                                     },
-                                    backgroundColor = DuoGreen,
-                                    shadowColor = DuoGreenDark,
+                                    backgroundColor = FinanceGreen,
+                                    shadowColor = FinanceGreenDark,
                                     cornerRadius = 10.dp,
                                     shadowHeight = 3.dp
                                 ) {
@@ -607,7 +607,7 @@ fun ActionQueueScreen(
                             val cat1 = topCategories[i]
                             val emoji1 = getCategoryEmoji(cat1.mainCategory)
                             val isSelected1 = currentTx.category.equals(cat1.mainCategory, ignoreCase = true)
-                            DuolingoPressableButton(
+                            FinanceButton(
                                 onClick = {
                                     if (cat1.subCategories.isNotEmpty()) {
                                         selectedCategoryForSub = cat1
@@ -615,8 +615,8 @@ fun ActionQueueScreen(
                                         viewModel.editCategory(currentTx, cat1.mainCategory, "", txNote)
                                     }
                                 },
-                                backgroundColor = if (isSelected1) DuoGreen else DuoCardDark,
-                                shadowColor = if (isSelected1) DuoGreenDark else DuoCardShadow,
+                                backgroundColor = if (isSelected1) FinanceGreen else FinanceCardDark,
+                                shadowColor = if (isSelected1) FinanceGreenDark else FinanceCardShadow,
                                 cornerRadius = 14.dp,
                                 shadowHeight = 4.dp,
                                 modifier = Modifier.weight(1f)
@@ -634,7 +634,7 @@ fun ActionQueueScreen(
                                 val cat2 = topCategories[i + 1]
                                 val emoji2 = getCategoryEmoji(cat2.mainCategory)
                                 val isSelected2 = currentTx.category.equals(cat2.mainCategory, ignoreCase = true)
-                                DuolingoPressableButton(
+                                FinanceButton(
                                     onClick = {
                                         if (cat2.subCategories.isNotEmpty()) {
                                             selectedCategoryForSub = cat2
@@ -642,8 +642,8 @@ fun ActionQueueScreen(
                                             viewModel.editCategory(currentTx, cat2.mainCategory, "", txNote)
                                         }
                                     },
-                                    backgroundColor = if (isSelected2) DuoGreen else DuoCardDark,
-                                    shadowColor = if (isSelected2) DuoGreenDark else DuoCardShadow,
+                                    backgroundColor = if (isSelected2) FinanceGreen else FinanceCardDark,
+                                    shadowColor = if (isSelected2) FinanceGreenDark else FinanceCardShadow,
                                     cornerRadius = 14.dp,
                                     shadowHeight = 4.dp,
                                     modifier = Modifier.weight(1f)
@@ -670,7 +670,7 @@ fun ActionQueueScreen(
                             .clip(Shapes.medium)
                             .clickable { isExpandedAllCategories = !isExpandedAllCategories },
                         shape = Shapes.medium,
-                        colors = CardDefaults.cardColors(containerColor = DuoCardDark)
+                        colors = CardDefaults.cardColors(containerColor = FinanceCardDark)
                     ) {
                         Row(
                             modifier = Modifier
@@ -717,7 +717,7 @@ fun ActionQueueScreen(
                                                 }
                                             },
                                         colors = CardDefaults.cardColors(
-                                            containerColor = if (isSelected) DuoGreen else DuoCardDark
+                                            containerColor = if (isSelected) FinanceGreen else FinanceCardDark
                                         )
                                     ) {
                                         Text(
@@ -735,15 +735,15 @@ fun ActionQueueScreen(
                                     modifier = Modifier
                                         .clip(Shapes.small)
                                         .clickable { showAddCategoryDialog = true },
-                                    colors = CardDefaults.cardColors(containerColor = DuoBlue.copy(alpha = 0.25f))
+                                    colors = CardDefaults.cardColors(containerColor = FinanceBlue.copy(alpha = 0.25f))
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = DuoBlue, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = FinanceBlue, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text("New Category", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = DuoBlue)
+                                        Text("New Category", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = FinanceBlue)
                                     }
                                 }
                             }
@@ -759,26 +759,26 @@ fun ActionQueueScreen(
                         title = { Text("Select ${cat.mainCategory} Subcategory", fontWeight = FontWeight.Bold) },
                         text = {
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                DuolingoPressableButton(
+                                FinanceButton(
                                     onClick = {
                                         viewModel.editCategory(currentTx, cat.mainCategory, "", txNote)
                                         selectedCategoryForSub = null
                                     },
-                                    backgroundColor = DuoGreen,
-                                    shadowColor = DuoGreenDark,
+                                    backgroundColor = FinanceGreen,
+                                    shadowColor = FinanceGreenDark,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text("General / No Subcategory", color = Color.White, fontWeight = FontWeight.Bold)
                                 }
 
                                 cat.subCategories.forEach { sub ->
-                                    DuolingoPressableButton(
+                                    FinanceButton(
                                         onClick = {
                                             viewModel.editCategory(currentTx, cat.mainCategory, sub, txNote)
                                             selectedCategoryForSub = null
                                         },
-                                        backgroundColor = DuoCardDark,
-                                        shadowColor = DuoCardShadow,
+                                        backgroundColor = FinanceCardDark,
+                                        shadowColor = FinanceCardShadow,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(sub, color = Color.White, fontWeight = FontWeight.Bold)
@@ -787,10 +787,10 @@ fun ActionQueueScreen(
                             }
                         },
                         confirmButton = {
-                            DuolingoPressableButton(
+                            FinanceButton(
                                 onClick = { selectedCategoryForSub = null },
-                                backgroundColor = DuoRed,
-                                shadowColor = DuoRedDark,
+                                backgroundColor = FinanceRed,
+                                shadowColor = FinanceRedDark,
                                 cornerRadius = 10.dp
                             ) {
                                 Text("Cancel", color = Color.White)
@@ -802,13 +802,13 @@ fun ActionQueueScreen(
                 // Bottom Confirmation Button (Only enabled if categorized!)
                 Spacer(Modifier.height(4.dp))
                 val hasNote = txNote.isNotBlank()
-                DuolingoPressableButton(
+                FinanceButton(
                     onClick = {
                         viewModel.confirmCategory(currentTx, txNote)
                     },
                     enabled = !isUncategorized,
-                    backgroundColor = DuoGreen,
-                    shadowColor = DuoGreenDark,
+                    backgroundColor = FinanceGreen,
+                    shadowColor = FinanceGreenDark,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isUncategorized) {

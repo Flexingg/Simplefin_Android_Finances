@@ -22,8 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.randallengineering.finances.ui.components.DuoGreen
-import com.randallengineering.finances.ui.components.DuoGreenDark
+import com.randallengineering.finances.core.theme.FinanceGreen
+import com.randallengineering.finances.core.theme.FinanceGreenDark
 
 /**
  * Full-screen Google sign-in gate. Signing in with the same Google account as the
@@ -77,7 +77,7 @@ fun GoogleSignInScreen(onSignIn: () -> Unit, onSkip: () -> Unit) {
             Button(
                 onClick = onSkip,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = DuoGreen,
+                    containerColor = FinanceGreen,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(24.dp),

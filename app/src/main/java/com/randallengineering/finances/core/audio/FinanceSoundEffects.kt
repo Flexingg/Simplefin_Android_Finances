@@ -8,7 +8,7 @@ import android.os.VibratorManager
 
 // De-gamified: no celebratory chimes/fanfares. These helpers now only trigger a
 // subtle tactile confirmation, if the device supports it.
-object DuolingoSoundEffects {
+object FinanceSoundEffects {
 
     fun playSuccessChime(context: Context? = null) {
         context?.let { performSuccessHaptic(it) }

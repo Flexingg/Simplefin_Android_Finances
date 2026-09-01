@@ -62,7 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.randallengineering.finances.core.theme.FinanceGreen
+import com.randallengineering.finances.core.theme.*
 import com.randallengineering.finances.core.theme.FinanceRed
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.CurrencyFormatter
@@ -95,7 +95,7 @@ fun InsightsScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.BarChart, contentDescription = null, tint = DuoGreen)
+                        Icon(Icons.Default.BarChart, contentDescription = null, tint = FinanceGreen)
                         Spacer(Modifier.width(8.dp))
                         Text("Insights & Analytics", fontWeight = FontWeight.Black)
                     }
@@ -167,8 +167,8 @@ private fun TrendsTabContent(
                         onClick = { viewModel.selectTimeRange(range) },
                         label = { Text(range.label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = DuoGreen.copy(alpha = 0.2f),
-                            selectedLabelColor = DuoGreenDark
+                            selectedContainerColor = FinanceGreen.copy(alpha = 0.2f),
+                            selectedLabelColor = FinanceGreenDark
                         )
                     )
                 }
@@ -217,7 +217,7 @@ private fun TrendsTabContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = DuoBlue)
+                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = FinanceBlue)
                         Spacer(Modifier.width(8.dp))
                         Text("Month-over-Month Trends (6 Mo)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
@@ -240,7 +240,7 @@ private fun TrendsTabContent(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(CircleShape),
-                                color = if (trend.netSavings >= 0) DuoBlue else DuoRed,
+                                color = if (trend.netSavings >= 0) FinanceBlue else FinanceRed,
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         }
@@ -299,7 +299,7 @@ private fun HeatmapTabContent(uiState: InsightsUiState) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = DuoGreen)
+                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = FinanceGreen)
                         Spacer(Modifier.width(8.dp))
                         Text("Current Month Spending Intensity", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
@@ -319,11 +319,11 @@ private fun HeatmapTabContent(uiState: InsightsUiState) {
                     ) {
                         uiState.currentMonthHeatmap.forEach { day ->
                             val color = when (day.intensityLevel) {
-                                0 -> DuoGreen.copy(alpha = 0.85f)      // $0 (Duolingo Green Success)
+                                0 -> FinanceGreen.copy(alpha = 0.85f)      // $0 (Finance Green Success)
                                 1 -> Color(0xFF66BB6A)                  // <$25 (Light Green)
-                                2 -> DuoGold                            // <$75 (Amber)
+                                2 -> FinanceAmber                            // <$75 (Amber)
                                 3 -> Color(0xFFFF7043)                  // <$150 (Orange)
-                                else -> DuoRed                          // $150+ (Red Peak)
+                                else -> FinanceRed                          // $150+ (Red Peak)
                             }
 
                             Box(
@@ -364,13 +364,13 @@ private fun HeatmapTabContent(uiState: InsightsUiState) {
                     ) {
                         Text("Intensity:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoGreen))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(FinanceGreen))
                             Text("\$0", style = MaterialTheme.typography.labelSmall)
                             Spacer(Modifier.width(4.dp))
-                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoGold))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(FinanceAmber))
                             Text("<\$75", style = MaterialTheme.typography.labelSmall)
                             Spacer(Modifier.width(4.dp))
-                            Box(Modifier.size(12.dp).clip(CircleShape).background(DuoRed))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(FinanceRed))
                             Text("\$150+", style = MaterialTheme.typography.labelSmall)
                         }
                     }
@@ -401,16 +401,16 @@ private fun NetWorthAndDebtTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = Shapes.large,
-                colors = CardDefaults.cardColors(containerColor = DuoGold.copy(alpha = 0.15f))
+                colors = CardDefaults.cardColors(containerColor = FinanceAmber.copy(alpha = 0.15f))
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Savings, contentDescription = null, tint = DuoGoldDark, modifier = Modifier.size(34.dp))
+                    Icon(Icons.Default.Savings, contentDescription = null, tint = FinanceAmberDark, modifier = Modifier.size(34.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Estimated Net Cash Flow", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
+                        Text("Estimated Net Cash Flow", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceAmberDark)
                         Text(
                             text = CurrencyFormatter.format(uiState.estimatedNetWorth),
                             fontWeight = FontWeight.Black,
@@ -433,7 +433,7 @@ private fun NetWorthAndDebtTabContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CreditCard, contentDescription = null, tint = DuoBlue)
+                        Icon(Icons.Default.CreditCard, contentDescription = null, tint = FinanceBlue)
                         Spacer(Modifier.width(8.dp))
                         Text("Debt Payoff Accelerator", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     }
@@ -442,20 +442,20 @@ private fun NetWorthAndDebtTabContent(
 
                     // Strategy Selector (Snowball vs Avalanche)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DuolingoPressableButton(
+                        FinanceButton(
                             onClick = { viewModel.setDebtStrategy("Snowball") },
-                            backgroundColor = if (sim.strategy == "Snowball") DuoGreen else DuoCardDark,
-                            shadowColor = if (sim.strategy == "Snowball") DuoGreenDark else DuoCardShadow,
+                            backgroundColor = if (sim.strategy == "Snowball") FinanceGreen else FinanceCardDark,
+                            shadowColor = if (sim.strategy == "Snowball") FinanceGreenDark else FinanceCardShadow,
                             cornerRadius = 8.dp,
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("❄️ Snowball (Smallest First)", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
                         }
 
-                        DuolingoPressableButton(
+                        FinanceButton(
                             onClick = { viewModel.setDebtStrategy("Avalanche") },
-                            backgroundColor = if (sim.strategy == "Avalanche") DuoBlue else DuoCardDark,
-                            shadowColor = if (sim.strategy == "Avalanche") DuoBlueDark else DuoCardShadow,
+                            backgroundColor = if (sim.strategy == "Avalanche") FinanceBlue else FinanceCardDark,
+                            shadowColor = if (sim.strategy == "Avalanche") FinanceBlueDark else FinanceCardShadow,
                             cornerRadius = 8.dp,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -486,11 +486,11 @@ private fun NetWorthAndDebtTabContent(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("Time to Debt-Free", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${sim.estimatedMonthsToDebtFree} Months", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoBlueDark)
+                                Text("${sim.estimatedMonthsToDebtFree} Months", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceBlueDark)
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("Est. Interest Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(CurrencyFormatter.format(sim.totalInterestPaid), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoRedDark)
+                                Text(CurrencyFormatter.format(sim.totalInterestPaid), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceRedDark)
                             }
                         }
                     }
