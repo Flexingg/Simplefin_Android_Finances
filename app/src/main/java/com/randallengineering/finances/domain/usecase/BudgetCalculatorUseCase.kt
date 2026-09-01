@@ -177,8 +177,11 @@ class BudgetCalculatorUseCase {
             )
         }
 
-        val monthlyVariableTarget = calculatedBudgets.sumOf { it.effectiveTargetAmount }
-        val mtdVariableSpent = calculatedBudgets.sumOf { it.spentAmount }
+        // Target daily allowance is based on discretionary budgets only —
+        // fixed costs (rent, utilities) are not part of day-to-day spending.
+        val variableBudgets = calculatedBudgets.filter { it.categoryType != BudgetCategoryType.FIXED }
+        val monthlyVariableTarget = variableBudgets.sumOf { it.effectiveTargetAmount }
+        val mtdVariableSpent = variableBudgets.sumOf { it.spentAmount }
 
         val safeDays = daysRemaining.coerceAtLeast(1)
         val remainingVariableBudget = (monthlyVariableTarget - mtdVariableSpent).coerceAtLeast(0.0)
