@@ -65,17 +65,6 @@ export interface Goal {
   isCompleted?: boolean;
 }
 
-export interface GamificationState {
-  xp: number;
-  level: number;
-  levelTitle: string;
-  streakDays: number;
-  hearts: number;
-  maxHearts: number;
-  gems: number;
-  completedQuests: string[];
-}
-
 export interface SimpleFinAccount {
   id: string;
   name: string;

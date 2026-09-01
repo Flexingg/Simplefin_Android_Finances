@@ -26,11 +26,6 @@ export declare class HermesFinanceTools {
             targetDailyAllowance: number;
             dailySpendActualAverage: number;
             daysRemainingInMonth: number;
-            streakDays: number;
-            xp: number;
-            level: string;
-            hearts: string;
-            gems: number;
             budgetAlerts: {
                 category: string;
                 spent: number;

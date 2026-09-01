@@ -74,13 +74,6 @@ export class FirestoreBridge {
                 console.error(`[firestore-sync] bootstrap ${col} failed:`, e);
             }
         }
-        // Gamification single doc
-        try {
-            const g = await this.db.doc(`users/${this.uid}/gamification/state`).get();
-            if (g.exists)
-                this.silent(() => storage.updateGamification(() => ({ ...storage.getGamification(), ...g.data() })));
-        }
-        catch (e) { }
         // SimpleFIN config
         try {
             const p = await this.db.doc(`users/${this.uid}`).get();
@@ -106,11 +99,6 @@ export class FirestoreBridge {
             }, (err) => console.error(`[firestore-sync] ${col} listener error:`, err));
             this.unsubs.push(un);
         }
-        this.db.doc(`users/${this.uid}/gamification/state`)
-            .onSnapshot((d) => {
-            if (d.exists)
-                this.silent(() => this.storage.updateGamification(() => ({ ...this.storage.getGamification(), ...d.data() })));
-        });
     }
     /** Push a written file's data to Firestore (called from FinanceStorage.saveFile). */
     async pushFromFile(filePath, data) {
@@ -119,10 +107,7 @@ export class FirestoreBridge {
         try {
             const name = path.basename(filePath);
             const now = Math.floor(Date.now() / 1000);
-            if (name === 'gamification.json') {
-                await this.db.doc(`users/${this.uid}/gamification/state`).set({ ...data, updatedAt: now });
-            }
-            else if (name === 'config.json') {
+            if (name === 'config.json') {
                 await this.db.doc(`users/${this.uid}`).set({ simplefin: data, updatedAt: now }, { merge: true });
             }
             else {

@@ -7,14 +7,12 @@ export class FinanceStorage {
     rulesFile;
     categoriesFile;
     goalsFile;
-    gamificationFile;
     configFile;
     transactions = new Map();
     budgets = new Map();
     rules = new Map();
     categories = new Map();
     goals = new Map();
-    gamification;
     config;
     firestoreBridge = null;
     silentPush = false;
@@ -39,18 +37,7 @@ export class FinanceStorage {
         this.rulesFile = path.join(this.dataDir, 'rules.json');
         this.categoriesFile = path.join(this.dataDir, 'categories.json');
         this.goalsFile = path.join(this.dataDir, 'goals.json');
-        this.gamificationFile = path.join(this.dataDir, 'gamification.json');
         this.configFile = path.join(this.dataDir, 'config.json');
-        this.gamification = {
-            xp: 1477,
-            level: 6,
-            levelTitle: 'Compound Master',
-            streakDays: 1,
-            hearts: 5,
-            maxHearts: 5,
-            gems: 280,
-            completedQuests: ['setup_simplefin', 'inbox_zero_day1']
-        };
         this.config = {
             accessUrlConfigured: false
         };
@@ -63,12 +50,6 @@ export class FinanceStorage {
         this.loadMap(this.rulesFile, this.rules);
         this.loadMap(this.categoriesFile, this.categories);
         this.loadMap(this.goalsFile, this.goals);
-        if (fs.existsSync(this.gamificationFile)) {
-            try {
-                this.gamification = JSON.parse(fs.readFileSync(this.gamificationFile, 'utf-8'));
-            }
-            catch (e) { }
-        }
         if (fs.existsSync(this.configFile)) {
             try {
                 this.config = JSON.parse(fs.readFileSync(this.configFile, 'utf-8'));
@@ -188,15 +169,6 @@ export class FinanceStorage {
     saveGoal(goal) {
         this.goals.set(goal.id, goal);
         this.saveFile(this.goalsFile, Array.from(this.goals.values()));
-    }
-    // --- Gamification ---
-    getGamification() {
-        return this.gamification;
-    }
-    updateGamification(updater) {
-        this.gamification = updater(this.gamification);
-        this.saveFile(this.gamificationFile, this.gamification);
-        return this.gamification;
     }
     // --- Config ---
     getConfig() {

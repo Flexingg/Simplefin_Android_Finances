@@ -11,7 +11,7 @@ const UID = 'test-user-123';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// --- Client A: write a transaction, budget, and gamification state ---
+// --- Client A: write a transaction and budget ---
 await db.doc(`users/${UID}/transactions/tx-1`).set({
   id: 'tx-1', accountId: 'acc-1', postedEpochSeconds: 1699999999, amount: -45.32,
   originalDesc: 'WALMART STORE', payee: 'Walmart', category: 'Food & Dining',
@@ -22,11 +22,7 @@ await db.doc(`users/${UID}/budgets/b-1`).set({
   id: 'b-1', category: 'Food & Dining', subCategory: 'Groceries',
   categoryType: 'FIXED', targetAmount: 450, rolloverEnabled: true, updatedAt: 1699999999,
 });
-await db.doc(`users/${UID}/gamification/state`).set({
-  xp: 1477, level: 6, levelTitle: 'Compound Master', streakDays: 1,
-  hearts: 5, maxHearts: 5, gems: 280, completedQuests: [], updatedAt: 1699999999,
-});
-console.log('[OK] Client A wrote transaction, budget, gamification for uid=' + UID);
+console.log('[OK] Client A wrote transaction, budget for uid=' + UID);
 
 // --- Client B: realtime snapshot must deliver the same data ---
 const got = await new Promise((resolve, reject) => {
@@ -42,12 +38,10 @@ if (tx.payee !== 'Walmart' || tx.category !== 'Food & Dining') {
 }
 console.log('[OK] Client B realtime snapshot delivered tx:', tx.payee, tx.category);
 
-// --- Verify gamification + budgets readable per-uid ---
-const gSnap = await db.doc(`users/${UID}/gamification/state`).get();
-if (!gSnap.exists || gSnap.data().xp !== 1477) { console.error('[FAIL] gamification'); process.exit(1); }
+// --- Verify budgets readable per-uid ---
 const bSnap = await db.doc(`users/${UID}/budgets/b-1`).get();
 if (!bSnap.exists || bSnap.data().targetAmount !== 450) { console.error('[FAIL] budget'); process.exit(1); }
-console.log('[OK] Gamification + budget readable per-uid');
+console.log('[OK] Budget readable per-uid');
 
 // --- Last-writer-wins: update updatedAt; snapshot reflects it ---
 await db.doc(`users/${UID}/transactions/tx-1`).set({ payee: 'Walmart (updated)', updatedAt: 1699999999 + 1 }, { merge: true });

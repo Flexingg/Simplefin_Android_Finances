@@ -58,7 +58,6 @@ export class HermesFinanceTools {
     const txs = this.storage.getTransactions();
     const budgets = this.storage.getBudgets();
     const summary = FinanceEngine.calculateSummary(txs, budgets);
-    const gamification = this.storage.getGamification();
 
     return {
       success: true,
@@ -70,11 +69,6 @@ export class HermesFinanceTools {
         targetDailyAllowance: summary.targetDailyAllowance,
         dailySpendActualAverage: summary.dailySpendActualAverage,
         daysRemainingInMonth: summary.daysRemainingInMonth,
-        streakDays: gamification.streakDays,
-        xp: gamification.xp,
-        level: `Lvl ${gamification.level} (${gamification.levelTitle})`,
-        hearts: `${gamification.hearts}/${gamification.maxHearts}`,
-        gems: gamification.gems,
         budgetAlerts: summary.calculatedBudgets.filter(b => b.isOverBudget || b.percentUsed >= 90).map(b => ({
           category: b.displayName,
           spent: b.spentAmount,
@@ -197,12 +191,6 @@ export class HermesFinanceTools {
       this.storage.saveTransaction(tx);
     }
 
-    // Award XP
-    this.storage.updateGamification(curr => ({
-      ...curr,
-      xp: curr.xp + (ruleCreated ? 35 : 15)
-    }));
-
     return {
       success: true,
       message: `Transaction categorized as ${args.mainCategory}${args.subCategory ? ` > ${args.subCategory}` : ''}.${ruleCreated ? ` Created auto-rule "${tx.payee || tx.originalDesc}" applied to ${ruleAppliedCount} transactions.` : ''}`,
@@ -236,7 +224,6 @@ export class HermesFinanceTools {
 
     if (updatedCount > 0) {
       this.storage.saveTransactions(Array.from(map.values()));
-      this.storage.updateGamification(curr => ({ ...curr, xp: curr.xp + (updatedCount * 15) }));
     }
 
     return {
@@ -282,7 +269,6 @@ export class HermesFinanceTools {
     tx.subCategory = args.splits[0]?.subCategory || tx.subCategory;
 
     this.storage.saveTransaction(tx);
-    this.storage.updateGamification(curr => ({ ...curr, xp: curr.xp + 25 }));
 
     return {
       success: true,

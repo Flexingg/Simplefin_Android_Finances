@@ -24,7 +24,7 @@ firestoreBridge.connect(storage);
 const TOOL_DEFINITIONS: Tool[] = [
   {
     name: 'get_financial_summary',
-    description: 'Fetches real-time financial health summary (MTD income, expenses, net savings, savings rate, target daily allowance, days remaining, active budget threshold warnings, gamification streak/hearts/gems/level).',
+    description: 'Fetches real-time financial health summary (MTD income, expenses, net savings, savings rate, target daily allowance, days remaining, active budget threshold warnings).',
     inputSchema: {
       type: 'object',
       properties: {}

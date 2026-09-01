@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Transaction, Budget, Rule, CategoryHierarchy, Goal, GamificationState, SimpleFinConfig } from './types.js';
+import { Transaction, Budget, Rule, CategoryHierarchy, Goal, SimpleFinConfig } from './types.js';
 
 export class FinanceStorage {
   private dataDir: string;
@@ -9,7 +9,6 @@ export class FinanceStorage {
   private rulesFile: string;
   private categoriesFile: string;
   private goalsFile: string;
-  private gamificationFile: string;
   private configFile: string;
 
   private transactions: Map<string, Transaction> = new Map();
@@ -17,7 +16,6 @@ export class FinanceStorage {
   private rules: Map<string, Rule> = new Map();
   private categories: Map<string, CategoryHierarchy> = new Map();
   private goals: Map<string, Goal> = new Map();
-  private gamification: GamificationState;
   private config: SimpleFinConfig;
   private firestoreBridge: any = null;
   private silentPush = false;
@@ -46,19 +44,7 @@ export class FinanceStorage {
     this.rulesFile = path.join(this.dataDir, 'rules.json');
     this.categoriesFile = path.join(this.dataDir, 'categories.json');
     this.goalsFile = path.join(this.dataDir, 'goals.json');
-    this.gamificationFile = path.join(this.dataDir, 'gamification.json');
     this.configFile = path.join(this.dataDir, 'config.json');
-
-    this.gamification = {
-      xp: 1477,
-      level: 6,
-      levelTitle: 'Compound Master',
-      streakDays: 1,
-      hearts: 5,
-      maxHearts: 5,
-      gems: 280,
-      completedQuests: ['setup_simplefin', 'inbox_zero_day1']
-    };
 
     this.config = {
       accessUrlConfigured: false
@@ -74,12 +60,6 @@ export class FinanceStorage {
     this.loadMap<Rule>(this.rulesFile, this.rules);
     this.loadMap<CategoryHierarchy>(this.categoriesFile, this.categories);
     this.loadMap<Goal>(this.goalsFile, this.goals);
-
-    if (fs.existsSync(this.gamificationFile)) {
-      try {
-        this.gamification = JSON.parse(fs.readFileSync(this.gamificationFile, 'utf-8'));
-      } catch (e) {}
-    }
 
     if (fs.existsSync(this.configFile)) {
       try {
@@ -214,17 +194,6 @@ export class FinanceStorage {
   saveGoal(goal: Goal): void {
     this.goals.set(goal.id, goal);
     this.saveFile(this.goalsFile, Array.from(this.goals.values()));
-  }
-
-  // --- Gamification ---
-  getGamification(): GamificationState {
-    return this.gamification;
-  }
-
-  updateGamification(updater: (current: GamificationState) => GamificationState): GamificationState {
-    this.gamification = updater(this.gamification);
-    this.saveFile(this.gamificationFile, this.gamification);
-    return this.gamification;
   }
 
   // --- Config ---

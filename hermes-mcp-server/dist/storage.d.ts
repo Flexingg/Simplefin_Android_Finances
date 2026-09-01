@@ -1,4 +1,4 @@
-import { Transaction, Budget, Rule, CategoryHierarchy, Goal, GamificationState, SimpleFinConfig } from './types.js';
+import { Transaction, Budget, Rule, CategoryHierarchy, Goal, SimpleFinConfig } from './types.js';
 export declare class FinanceStorage {
     private dataDir;
     private transactionsFile;
@@ -6,14 +6,12 @@ export declare class FinanceStorage {
     private rulesFile;
     private categoriesFile;
     private goalsFile;
-    private gamificationFile;
     private configFile;
     private transactions;
     private budgets;
     private rules;
     private categories;
     private goals;
-    private gamification;
     private config;
     private firestoreBridge;
     private silentPush;
@@ -45,8 +43,6 @@ export declare class FinanceStorage {
     addOrUpdateCategory(mainCategory: string, subCategory?: string): void;
     getGoals(): Goal[];
     saveGoal(goal: Goal): void;
-    getGamification(): GamificationState;
-    updateGamification(updater: (current: GamificationState) => GamificationState): GamificationState;
     getConfig(): SimpleFinConfig;
     saveConfig(config: SimpleFinConfig): void;
 }
