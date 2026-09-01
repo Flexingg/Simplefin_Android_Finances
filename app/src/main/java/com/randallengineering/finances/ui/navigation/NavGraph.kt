@@ -1,18 +1,12 @@
 package com.randallengineering.finances.ui.navigation
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,11 +35,10 @@ import androidx.navigation.navArgument
 import com.randallengineering.finances.ui.components.AiChatbotOverlay
 import com.randallengineering.finances.ui.screens.ai.AiAdvisorScreen
 import com.randallengineering.finances.ui.screens.budgets.BudgetsScreen
-import com.randallengineering.finances.ui.screens.gear.GearLoadoutScreen
+import com.randallengineering.finances.ui.screens.dashboard.DashboardScreen
 import com.randallengineering.finances.ui.screens.goals.GoalsAndWantsScreen
 import com.randallengineering.finances.ui.screens.insights.InsightsScreen
 import com.randallengineering.finances.ui.screens.onboarding.SimpleFinOnboardingScreen
-import com.randallengineering.finances.ui.screens.quest.QuestPathScreen
 import com.randallengineering.finances.ui.screens.queue.ActionQueueScreen
 import com.randallengineering.finances.ui.screens.rules.RulesManagementScreen
 import com.randallengineering.finances.ui.screens.settings.SettingsScreen
@@ -59,11 +52,11 @@ data class BottomNavItem(
 )
 
 val BottomNavItems = listOf(
-    BottomNavItem(Screen.QuestPath.route, "Quests", Icons.Default.Map),
-    BottomNavItem(Screen.ActionQueue.route, "Queue", Icons.Default.Style),
+    BottomNavItem(Screen.Dashboard.route, "Home", Icons.Default.Home),
+    BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong),
     BottomNavItem(Screen.Budgets.route, "Budgets", Icons.Default.PieChart),
     BottomNavItem(Screen.Insights.route, "Insights", Icons.Default.BarChart),
-    BottomNavItem(Screen.Transactions.route, "History", Icons.AutoMirrored.Filled.ReceiptLong)
+    BottomNavItem(Screen.ActionQueue.route, "Queue", Icons.Default.Style)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,15 +71,15 @@ fun FinanceNavHost(
 
     Scaffold(
         topBar = {
-            if (shouldShowBottomBar && currentRoute != Screen.QuestPath.route && currentRoute != Screen.ActionQueue.route && currentRoute != Screen.GearLoadout.route && currentRoute != Screen.Budgets.route) {
+            if (shouldShowBottomBar && currentRoute != Screen.Budgets.route) {
                 TopAppBar(
                     title = {
                         val currentTitle = when (currentRoute) {
+                            Screen.Dashboard.route -> "Randall Finances"
                             Screen.Transactions.route -> "Transaction History"
                             Screen.Budgets.route -> "Budgets & Categories"
                             Screen.Insights.route -> "Insights & Analytics"
-                            Screen.Goals.route -> "Savings & Goals"
-                            Screen.AiAdvisor.route -> "AI Advisor (Gemini)"
+                            Screen.ActionQueue.route -> "Review Queue"
                             else -> "Randall Finances"
                         }
                         Text(
@@ -139,17 +132,17 @@ fun FinanceNavHost(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.QuestPath.route,
+            startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.QuestPath.route) {
-                QuestPathScreen(
-                    onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+            composable(Screen.Dashboard.route) {
+                DashboardScreen(
+                    onNavigateToTransactions = { navController.navigate(Screen.Transactions.route) },
                     onNavigateToBudgets = { navController.navigate(Screen.Budgets.route) },
-                    onNavigateToGoals = { navController.navigate(Screen.Goals.route) },
-                    onNavigateToGear = { navController.navigate(Screen.GearLoadout.route) },
-                    onNavigateToAi = { navController.navigate(Screen.AiAdvisor.route) }
+                    onNavigateToInsights = { navController.navigate(Screen.Insights.route) },
+                    onNavigateToQueue = { navController.navigate(Screen.ActionQueue.route) },
+                    onNavigateToAi = { navController.navigate(Screen.AiAdvisor.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                 )
             }
             composable(Screen.ActionQueue.route) {
@@ -157,13 +150,10 @@ fun FinanceNavHost(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.GearLoadout.route) {
-                GearLoadoutScreen()
-            }
             composable(Screen.Onboarding.route) {
                 SimpleFinOnboardingScreen(
                     onNavigateToTransactions = {
-                        navController.navigate(Screen.QuestPath.route) {
+                        navController.navigate(Screen.Dashboard.route) {
                             popUpTo(Screen.Onboarding.route) { inclusive = true }
                         }
                     }

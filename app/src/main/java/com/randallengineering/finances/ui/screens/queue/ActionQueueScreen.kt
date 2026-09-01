@@ -74,7 +74,6 @@ import com.randallengineering.finances.ui.components.DuoGreenDark
 import com.randallengineering.finances.ui.components.DuoRed
 import com.randallengineering.finances.ui.components.DuoRedDark
 import com.randallengineering.finances.ui.components.DuolingoPressableButton
-import com.randallengineering.finances.ui.components.GamificationHud
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.abs
 
@@ -164,7 +163,11 @@ fun ActionQueueScreen(
 
     Scaffold(
         topBar = {
-            GamificationHud()
+            // No gamification HUD — the review queue stands on its own.
+            androidx.compose.material3.TopAppBar(
+                title = { androidx.compose.material3.Text("Review Queue") },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors()
+            )
         }
     ) { innerPadding ->
         Column(
@@ -187,24 +190,10 @@ fun ActionQueueScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Daily Habit Review (${uiState.currentCardIndex}/${uiState.pendingTransactions.size})",
+                        text = "Reviewing transaction ${uiState.currentCardIndex + 1}/${uiState.pendingTransactions.size}",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleSmall
                     )
-
-                    if (uiState.comboMultiplier > 1) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(Shapes.small)
-                                .background(DuoGold.copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = DuoGoldDark, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("${uiState.comboMultiplier}x Combo!", fontWeight = FontWeight.Black, color = DuoGoldDark, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
                 }
 
                 LinearProgressIndicator(
@@ -270,7 +259,7 @@ fun ActionQueueScreen(
                         Text("🦉", style = MaterialTheme.typography.displayLarge)
                         Text("Queue Cleared!", fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium)
                         Text(
-                            text = "All transactions categorized and verified! +${uiState.totalXpEarnedInSession} XP earned today.",
+                            text = "All transactions have been reviewed.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -816,12 +805,8 @@ fun ActionQueueScreen(
                 // Bottom Confirmation Button (Only enabled if categorized!)
                 Spacer(Modifier.height(4.dp))
                 val hasNote = txNote.isNotBlank()
-                val totalConfirmXp = (15 * uiState.comboMultiplier) + (if (hasNote) 10 else 0)
-                val bonusNoteText = if (hasNote) " (+10 XP Note Bonus!)" else ""
-
                 DuolingoPressableButton(
                     onClick = {
-                        com.randallengineering.finances.core.audio.DuolingoSoundEffects.playComboChime(uiState.comboMultiplier, context)
                         viewModel.confirmCategory(currentTx, txNote)
                     },
                     enabled = !isUncategorized,
@@ -830,11 +815,11 @@ fun ActionQueueScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isUncategorized) {
-                        Text("⚠️ Choose Category Above to Confirm", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Choose a Category Above to Confirm", color = Color.White, fontWeight = FontWeight.Bold)
                     } else {
                         Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
                         Spacer(Modifier.width(8.dp))
-                        Text("Confirm (${currentTx.category}) +${totalConfirmXp} XP$bonusNoteText", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Confirm (${currentTx.category})", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
