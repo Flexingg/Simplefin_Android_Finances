@@ -6,7 +6,7 @@
 [![Firebase](https://img.shields.io/badge/Backend-Firebase%20(Firestore%20%2B%20Functions%20%2B%20Hosting)-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/Flexingg/Simplefin_Android_Finances/actions/workflows/ci.yml/badge.svg)](https://github.com/Flexingg/Simplefin_Android_Finances/actions/workflows/ci.yml)
-[![Download APK](https://img.shields.io/badge/Download-APK-3DDC84?logo=android&logoColor=white)](https://github.com/Flexingg/Simplefin_Android_Finances/releases/latest/download/SimpleFin-v1.1.0.apk)
+[![Download APK](https://img.shields.io/badge/Download-APK-3DDC84?logo=android&logoColor=white)](https://github.com/Flexingg/Simplefin_Android_Finances/releases/latest/download/SimpleFin-v1.1.1.apk)
 
 An autonomous, privacy-first, full-stack personal finance application for Android. Built with **Jetpack Compose (Material 3)**, **SimpleFIN Bridge API** for direct multi-bank synchronization, **Firebase Cloud Services**, and a novel **In-App AI Amazon Order Ingestion & Matcher Engine**.
 
