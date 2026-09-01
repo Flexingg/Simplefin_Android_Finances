@@ -52,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,7 +64,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.randallengineering.finances.core.theme.FinanceGreen
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.core.util.DateUtils
+import com.randallengineering.finances.ui.components.BackupExportSection
 import com.randallengineering.finances.ui.components.ExpressiveCard
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 private val AmazonAmber = Color(0xFFFF9900)
@@ -78,6 +81,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.initSecurityState(context)
@@ -163,6 +167,15 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // -------------------------------------------------------------
+            // Backup & Export Section
+            // -------------------------------------------------------------
+            BackupExportSection(
+                driveSignInIntent = { viewModel.driveSignInIntent() },
+                csvProvider = { viewModel.buildBackupCsv() },
+                onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+            )
 
             // -------------------------------------------------------------
             // SimpleFIN Sync Section

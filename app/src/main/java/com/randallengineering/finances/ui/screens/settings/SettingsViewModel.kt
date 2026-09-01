@@ -6,13 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.security.BiometricAuthManager
+import com.randallengineering.finances.core.util.CsvExporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
+import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.usecase.SimpleFinSyncUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -36,7 +39,8 @@ class SettingsViewModel(
     private val simpleFinSyncUseCase: SimpleFinSyncUseCase,
     private val simpleFinRepository: SimpleFinRepository,
     private val amazonRepository: AmazonRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -57,6 +61,15 @@ class SettingsViewModel(
             sessionManager.signOut()
             _uiState.update { it.copy(accountEmail = null, accountDisplayName = null) }
         }
+    }
+
+    /** Drive-scoped sign-in intent, launched only when a Drive backup needs consent. */
+    fun driveSignInIntent(): android.content.Intent = sessionManager.driveSignInClient.signInIntent
+
+    /** Build a CSV of the user's real transactions for export/backup. */
+    suspend fun buildBackupCsv(): String {
+        val txs = transactionRepository.getTransactionsFlow().first().getOrNull().orEmpty()
+        return CsvExporter.toCsv(txs)
     }
 
     fun initSecurityState(context: Context) {

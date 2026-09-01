@@ -69,6 +69,21 @@ class SessionManager(
         GoogleSignIn.getClient(context, opts)
     }
 
+    /** Sign-in client that also requests Drive.file scope (used for Drive backups). */
+    val driveSignInClient: GoogleSignInClient by lazy {
+        val webClientId = try {
+            context.getString(context.resources.getIdentifier("default_web_client_id", "string", context.packageName))
+        } catch (e: Exception) { "" }
+        val opts = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .apply {
+                if (webClientId.isNotBlank()) requestIdToken(webClientId)
+                requestScopes(com.google.android.gms.common.api.Scope(com.randallengineering.finances.core.backup.DriveBackupManager.DRIVE_SCOPE))
+            }
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, opts)
+    }
+
     /** Exchange the Google sign-in result for a Firebase Auth session. */
     suspend fun handleSignInResult(task: Task<GoogleSignInAccount>): Resource<Unit> {
         return try {

@@ -3,8 +3,12 @@ package com.randallengineering.finances.ui.screens.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.core.prefs.DashboardLayoutRepository
+import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
+import com.randallengineering.finances.domain.model.DashboardCardType
 import com.randallengineering.finances.domain.model.Transaction
+import com.randallengineering.finances.domain.usecase.BudgetCalculatorUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,27 +32,52 @@ data class DashboardUiState(
     val monthIncome: Double = 0.0,
     val monthExpenses: Double = 0.0,
     val monthNet: Double = 0.0,
+    val savingsRate: Double = 0.0,
+    val dailyAllowance: Double = 0.0,
+    val budgetAlertCount: Int = 0,
     val topCategories: List<TopCategoryItem> = emptyList(),
     val recentTransactions: List<Transaction> = emptyList(),
     val uncategorizedCount: Int = 0,
+    val hasTransactions: Boolean = false,
+    val enabledCards: List<DashboardCardType> = DashboardCardType.entries.toList(),
+    val fullLayout: List<Pair<DashboardCardType, Boolean>> = DashboardCardType.entries.map { it to true },
     val isLoading: Boolean = false
 )
 
 class DashboardViewModel(
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val budgetRepository: BudgetRepository,
+    private val budgetCalculatorUseCase: BudgetCalculatorUseCase,
+    private val layoutRepository: DashboardLayoutRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    @Volatile
+    private var latestTransactions: List<Transaction> = emptyList()
+
     init {
+        loadLayout()
         observeTransactions()
+        observeBudgets()
+    }
+
+    private fun loadLayout() {
+        val layout = layoutRepository.getLayout()
+        _uiState.update {
+            it.copy(
+                fullLayout = layout,
+                enabledCards = layout.filter { snd -> snd.second }.map { fst -> fst.first }
+            )
+        }
     }
 
     private fun observeTransactions() {
         viewModelScope.launch {
             transactionRepository.getTransactionsFlow().collect { resource ->
                 val list = resource.getOrNull().orEmpty()
+                latestTransactions = list
                 withContext(Dispatchers.Default) {
                     val metrics = calculate(list)
                     _uiState.update {
@@ -57,14 +86,68 @@ class DashboardViewModel(
                             monthIncome = metrics.monthIncome,
                             monthExpenses = metrics.monthExpenses,
                             monthNet = metrics.monthNet,
+                            savingsRate = metrics.savingsRate,
                             topCategories = metrics.topCategories,
                             recentTransactions = metrics.recent,
                             uncategorizedCount = metrics.uncategorized,
+                            hasTransactions = list.isNotEmpty(),
                             isLoading = resource.isLoading
                         )
                     }
                 }
             }
+        }
+    }
+
+    private fun observeBudgets() {
+        viewModelScope.launch {
+            budgetRepository.getBudgetsFlow().collect { resource ->
+                val budgets = resource.getOrNull().orEmpty()
+                withContext(Dispatchers.Default) {
+                    val result = budgetCalculatorUseCase.calculate(budgets, latestTransactions)
+                    val alerts = result.calculatedBudgets.count { it.isOverBudget || it.pacingPercent >= 90.0 }
+                    _uiState.update {
+                        it.copy(
+                            dailyAllowance = result.targetDailyAllowance,
+                            budgetAlertCount = alerts
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun toggleCard(type: DashboardCardType) {
+        val layout = _uiState.value.fullLayout.map { (t, enabled) -> if (t == type) t to !enabled else t to enabled }
+        layoutRepository.saveLayout(layout)
+        _uiState.update {
+            it.copy(
+                fullLayout = layout,
+                enabledCards = layout.filter { snd -> snd.second }.map { fst -> fst.first }
+            )
+        }
+    }
+
+    fun moveCard(type: DashboardCardType, moveUp: Boolean) {
+        val layout = _uiState.value.fullLayout.toMutableList()
+        val idx = layout.indexOfFirst { it.first == type }
+        if (idx < 0) return
+        val target = if (moveUp) idx - 1 else idx + 1
+        if (target < 0 || target >= layout.size) return
+        val item = layout.removeAt(idx)
+        layout.add(target, item)
+        layoutRepository.saveLayout(layout)
+        _uiState.update { it.copy(fullLayout = layout) }
+    }
+
+    fun resetLayout() {
+        val layout = DashboardCardType.entries.map { it to true }
+        layoutRepository.saveLayout(layout)
+        _uiState.update {
+            it.copy(
+                fullLayout = layout,
+                enabledCards = DashboardCardType.entries.toList()
+            )
         }
     }
 
@@ -82,6 +165,7 @@ class DashboardViewModel(
         val monthExpenses = monthTxs
             .filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }
             .sumOf { abs(it.amount) }
+        val monthNet = monthIncome - monthExpenses
 
         val catMap = mutableMapOf<String, Double>()
         for (tx in monthTxs.filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }) {
@@ -108,7 +192,8 @@ class DashboardViewModel(
             totalBalance = totalBalance,
             monthIncome = monthIncome,
             monthExpenses = monthExpenses,
-            monthNet = monthIncome - monthExpenses,
+            monthNet = monthNet,
+            savingsRate = if (monthIncome > 0) (monthNet / monthIncome * 100.0) else 0.0,
             topCategories = topCategories,
             recent = recent,
             uncategorized = uncategorized
@@ -120,6 +205,7 @@ class DashboardViewModel(
         val monthIncome: Double,
         val monthExpenses: Double,
         val monthNet: Double,
+        val savingsRate: Double,
         val topCategories: List<TopCategoryItem>,
         val recent: List<Transaction>,
         val uncategorized: Int
