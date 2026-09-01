@@ -19,45 +19,38 @@ import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
-import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
-import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.randallengineering.finances.MainActivity
+
+private fun cp(color: androidx.compose.ui.graphics.Color) =
+    ColorProvider(day = color, night = color)
 
 class RandallFinancesWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Read cached gamification state & pending review count
-        val prefs = context.getSharedPreferences("randall_finances_prefs", Context.MODE_PRIVATE)
-        val streak = prefs.getInt("widget_streak", 3)
-        val level = prefs.getInt("widget_level", 1)
-        val pendingCount = prefs.getInt("widget_pending_queue", 4)
-
         provideContent {
             GlanceTheme {
-                WidgetContent(streak = streak, level = level, pendingCount = pendingCount)
+                WidgetContent()
             }
         }
     }
 
     @Composable
-    private fun WidgetContent(streak: Int, level: Int, pendingCount: Int) {
-        val darkCardColor = androidx.compose.ui.graphics.Color(0xFF1E1726)
-        val greenColor = androidx.compose.ui.graphics.Color(0xFF58CC02)
-        val goldColor = androidx.compose.ui.graphics.Color(0xFFFFC800)
+    private fun WidgetContent() {
+        val cardColor = androidx.compose.ui.graphics.Color(0xFF14181B)
+        val accent = androidx.compose.ui.graphics.Color(0xFF1B873F)
 
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(darkCardColor)
+                .background(cardColor)
                 .cornerRadius(16.dp)
                 .padding(14.dp)
         ) {
@@ -65,51 +58,33 @@ class RandallFinancesWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.fillMaxSize(),
                 verticalAlignment = Alignment.Vertical.CenterVertically
             ) {
-                // Top Row: Mascot, Level, and Streak
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Vertical.CenterVertically
-                ) {
-                    Text(
-                        text = "🦉 Level $level",
-                        style = TextStyle(
-                            color = ColorProvider(greenColor),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    )
-                    Spacer(modifier = GlanceModifier.defaultWeight())
-                    Text(
-                        text = "🔥 $streak Days",
-                        style = TextStyle(
-                            color = ColorProvider(goldColor),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    )
-                }
-
-                Spacer(modifier = GlanceModifier.height(8.dp))
-
-                // Queue Review Prompt
                 Text(
-                    text = if (pendingCount > 0) "📬 $pendingCount Transactions to Review (+XP)" else "🎉 Queue Cleared! Inbox Zero!",
+                    text = "Randall Finances",
                     style = TextStyle(
-                        color = ColorProvider(androidx.compose.ui.graphics.Color.White),
+                        color = cp(androidx.compose.ui.graphics.Color.White),
                         fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                )
+
+                Spacer(modifier = GlanceModifier.height(6.dp))
+
+                Text(
+                    text = "Open the app to review and manage your transactions.",
+                    style = TextStyle(
+                        color = cp(androidx.compose.ui.graphics.Color(0xFFB9C2C6)),
                         fontSize = 12.sp
                     )
                 )
 
-                Spacer(modifier = GlanceModifier.height(10.dp))
+                Spacer(modifier = GlanceModifier.height(12.dp))
 
-                // 1-Tap Quick Review Button
                 Button(
-                    text = "⚡ Review Daily Queue ➔",
+                    text = "Open App",
                     onClick = actionStartActivity<MainActivity>(),
                     colors = ButtonDefaults.buttonColors(
-                        backgroundColor = ColorProvider(greenColor),
-                        contentColor = ColorProvider(androidx.compose.ui.graphics.Color.White)
+                        backgroundColor = cp(accent),
+                        contentColor = cp(androidx.compose.ui.graphics.Color.White)
                     ),
                     modifier = GlanceModifier.fillMaxWidth().height(36.dp)
                 )

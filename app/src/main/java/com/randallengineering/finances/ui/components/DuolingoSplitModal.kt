@@ -100,7 +100,6 @@ fun DuolingoSplitModal(
     val currentAllocated = splitRows.sumOf { it.amountText.toDoubleOrNull() ?: 0.0 }
     val remaining = totalAmount - currentAllocated
     val isBalanced = abs(remaining) < 0.05
-    val noteBonusCount = splitRows.count { it.note.isNotBlank() }
 
     // 1. Subcategory Selection Dialog for Split Line
     if (selectedCategoryForSub != null && selectedRowForCategory != null) {
@@ -387,7 +386,7 @@ fun DuolingoSplitModal(
                                 onValueChange = { newNote ->
                                     splitRows[index] = row.copy(note = newNote)
                                 },
-                                placeholder = { Text("💬 Item note (+10 XP bonus!)", style = MaterialTheme.typography.labelSmall) },
+                                placeholder = { Text("Item note (optional)", style = MaterialTheme.typography.labelSmall) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -456,15 +455,6 @@ fun DuolingoSplitModal(
                             color = if (isBalanced) DuoGreenDark else DuoRedDark,
                             style = MaterialTheme.typography.labelSmall
                         )
-
-                        if (noteBonusCount > 0) {
-                            Text(
-                                text = "+${noteBonusCount * 10} XP Note Bonus! 🎁",
-                                fontWeight = FontWeight.Bold,
-                                color = DuoGoldDark,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
                     }
                 }
             }
@@ -495,7 +485,7 @@ fun DuolingoSplitModal(
                 shadowColor = if (isBalanced) DuoGreenDark else Color.DarkGray,
                 cornerRadius = 10.dp
             ) {
-                Text("Confirm Split (+35 XP) 🎉", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Confirm Split", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

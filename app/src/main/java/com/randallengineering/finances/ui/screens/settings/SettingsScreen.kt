@@ -362,7 +362,7 @@ fun SettingsScreen(
                 ) {
                     Text("About Randall Finances", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "Duolingo Gamified Personal Finance & Budgeting Engine.\nVersion 2.0 • Build Debug",
+                        text = "Randall Finances — Personal Finance & Budgeting Engine.\nVersion 2.0 • Build Debug",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

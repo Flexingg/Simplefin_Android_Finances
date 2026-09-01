@@ -253,7 +253,7 @@ class InsightsViewModel(
     private fun calculateEstimatedNetWorth(transactions: List<Transaction>): Double {
         val totalIncome = transactions.filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }.sumOf { abs(it.amount) }
         val totalExpense = transactions.filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }.sumOf { abs(it.amount) }
-        return (totalIncome - totalExpense).coerceAtLeast(1250.0) // Fallback positive baseline
+        return (totalIncome - totalExpense)
     }
 
     private fun filterTransactionsByRange(transactions: List<Transaction>, range: TimeRange): List<Transaction> {

@@ -407,10 +407,10 @@ private fun NetWorthAndDebtTabContent(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("💎", style = MaterialTheme.typography.displayMedium)
+                    Icon(Icons.Default.Savings, contentDescription = null, tint = DuoGoldDark, modifier = Modifier.size(34.dp))
                     Spacer(Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Estimated Net Cash Flow Vault", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
+                        Text("Estimated Net Cash Flow", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = DuoGoldDark)
                         Text(
                             text = CurrencyFormatter.format(uiState.estimatedNetWorth),
                             fontWeight = FontWeight.Black,

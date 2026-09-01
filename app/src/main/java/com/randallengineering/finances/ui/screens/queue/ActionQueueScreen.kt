@@ -256,7 +256,6 @@ fun ActionQueueScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text("🦉", style = MaterialTheme.typography.displayLarge)
                         Text("Queue Cleared!", fontWeight = FontWeight.Black, style = MaterialTheme.typography.headlineMedium)
                         Text(
                             text = "All transactions have been reviewed.",
@@ -275,25 +274,23 @@ fun ActionQueueScreen(
                         ) {
                             Icon(Icons.Default.Replay, contentDescription = null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("Practice Again", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Start Over", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             } else {
-                // Duolingo Mascot Prompt
+                // Review guidance prompt
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🦉", style = MaterialTheme.typography.headlineLarge)
-                    Spacer(Modifier.width(10.dp))
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(topStart = 4.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
                         colors = CardDefaults.cardColors(containerColor = if (isUncategorized) DuoGold.copy(alpha = 0.18f) else DuoGreen.copy(alpha = 0.15f))
                     ) {
                         Text(
-                            text = if (isUncategorized) "Choose a category or generate an Auto-Rule to earn bonus XP!" else "Is this category correct? Confirm, search, or create an Auto-Rule below!",
+                            text = if (isUncategorized) "Choose a category or generate an Auto-Rule to categorize this transaction." else "Is this category correct? Confirm, search, or create an Auto-Rule below.",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             color = if (isUncategorized) DuoGoldDark else DuoGreenDark,
@@ -342,7 +339,7 @@ fun ActionQueueScreen(
                         OutlinedTextField(
                             value = txNote,
                             onValueChange = { txNote = it },
-                            placeholder = { Text("💬 Add a quick note (+10 XP bonus!)", style = MaterialTheme.typography.bodySmall) },
+                            placeholder = { Text("Add a quick note (optional)", style = MaterialTheme.typography.bodySmall) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -446,7 +443,7 @@ fun ActionQueueScreen(
                                 Icon(Icons.Default.Bolt, contentDescription = null, tint = DuoGold, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
-                                    text = "Auto-Rule Generator (+35 XP)",
+                                    text = "Auto-Rule Generator",
                                     fontWeight = FontWeight.Black,
                                     color = Color.White,
                                     style = MaterialTheme.typography.bodyMedium
