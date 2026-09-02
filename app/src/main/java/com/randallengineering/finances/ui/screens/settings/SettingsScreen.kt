@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Sync
@@ -51,6 +52,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -387,6 +392,16 @@ fun SettingsScreen(
             }
 
             // -------------------------------------------------------------
+            // Notifications (opt-in, default off) Section
+            // -------------------------------------------------------------
+            NotificationSettingsCard(
+                budgetAlerts = uiState.budgetAlertsEnabled,
+                reviewAlerts = uiState.reviewAlertsEnabled,
+                onToggleBudget = { on -> viewModel.setBudgetAlerts(on) },
+                onToggleReview = { on -> viewModel.setReviewAlerts(on) }
+            )
+
+            // -------------------------------------------------------------
             // Amazon Order History Launcher Section
             // -------------------------------------------------------------
             ExpressiveCard(
@@ -457,5 +472,124 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun NotificationSettingsCard(
+    budgetAlerts: Boolean,
+    reviewAlerts: Boolean,
+    onToggleBudget: (Boolean) -> Unit,
+    onToggleReview: (Boolean) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var pendingType by remember { mutableStateOf<String?>(null) }
+    var showConfirm by remember { mutableStateOf(false) }
+    var permissionNote by remember { mutableStateOf<String?>(null) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val type = pendingType
+        pendingType = null
+        if (granted) {
+            permissionNote = null
+            if (type == "budget") onToggleBudget(true) else onToggleReview(true)
+        } else {
+            permissionNote = if (type == "budget")
+                "Notification permission was denied, so budget alerts stay off. You can enable it later in system Settings."
+            else
+                "Notification permission was denied, so review reminders stay off. You can enable it later in system Settings."
+        }
+    }
+
+    // Called when the user confirms they want a category on.
+    fun confirmEnable(type: String) {
+        val needsPermission = android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            pendingType = type
+            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            pendingType = null
+            if (type == "budget") onToggleBudget(true) else onToggleReview(true)
+        }
+    }
+
+    fun requestEnable(type: String) {
+        pendingType = type
+        showConfirm = true
+    }
+
+    if (showConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            title = { Text("Enable notifications?") },
+            text = {
+                Text(
+                    if (pendingType == "budget")
+                        "Turn on budget alerts? You'll be notified when a category reaches 90% of its monthly limit."
+                    else
+                        "Turn on review reminders? You'll be notified when new transactions arrive that need categorization in your review queue."
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showConfirm = false
+                    confirmEnable(pendingType ?: return@TextButton)
+                }) { Text("Enable") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showConfirm = false }) { Text("Not now") }
+            }
+        )
+    }
+
+    ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text("Notifications", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Alerts are off by default. Only categories you enable will ever be sent.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            NotificationSwitchRow("Budget alerts", "Notify at 90% of a monthly category budget", budgetAlerts) {
+                if (it) requestEnable("budget") else onToggleBudget(false)
+            }
+            NotificationSwitchRow("Review reminders", "New transactions needing review after a sync", reviewAlerts) {
+                if (it) requestEnable("review") else onToggleReview(false)
+            }
+
+            permissionNote?.let { note ->
+                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationSwitchRow(title: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(end = 8.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onToggle)
     }
 }

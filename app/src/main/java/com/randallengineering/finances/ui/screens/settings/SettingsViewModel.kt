@@ -9,6 +9,7 @@ import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.util.CsvExporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
+import com.randallengineering.finances.data.repository.NotificationPrefsRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.SyncStatusRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
@@ -34,7 +35,9 @@ data class SettingsUiState(
     val successMessage: String? = null,
     val errorMessage: String? = null,
     val errList: List<String> = emptyList(),
-    val lastSync: SyncStatusRepository.SyncStatus? = null
+    val lastSync: SyncStatusRepository.SyncStatus? = null,
+    val budgetAlertsEnabled: Boolean = false,
+    val reviewAlertsEnabled: Boolean = false
 )
 
 class SettingsViewModel(
@@ -43,7 +46,8 @@ class SettingsViewModel(
     private val amazonRepository: AmazonRepository,
     private val sessionManager: SessionManager,
     private val transactionRepository: TransactionRepository,
-    private val syncStatusRepository: SyncStatusRepository
+    private val syncStatusRepository: SyncStatusRepository,
+    private val notificationPrefsRepository: NotificationPrefsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -52,6 +56,7 @@ class SettingsViewModel(
     init {
         observeConfig()
         observeSyncStatus()
+        observeNotificationPrefs()
         _uiState.update {
             it.copy(
                 accountEmail = sessionManager.email,
@@ -59,6 +64,23 @@ class SettingsViewModel(
             )
         }
     }
+
+    private fun observeNotificationPrefs() {
+        viewModelScope.launch {
+            notificationPrefsRepository.budgetAlerts.collect { on ->
+                _uiState.update { it.copy(budgetAlertsEnabled = on) }
+            }
+        }
+        viewModelScope.launch {
+            notificationPrefsRepository.reviewAlerts.collect { on ->
+                _uiState.update { it.copy(reviewAlertsEnabled = on) }
+            }
+        }
+    }
+
+    /** Opt-in toggles (default off). Called only after the user confirms + grants permission. */
+    fun setBudgetAlerts(enabled: Boolean) = notificationPrefsRepository.setBudgetAlerts(enabled)
+    fun setReviewAlerts(enabled: Boolean) = notificationPrefsRepository.setReviewAlerts(enabled)
 
     private fun observeSyncStatus() {
         viewModelScope.launch {

@@ -8,6 +8,7 @@ import com.randallengineering.finances.core.notifications.NotificationHelper
 import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
+import com.randallengineering.finances.data.repository.NotificationPrefsRepository
 import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.SyncStatusRepository
@@ -34,6 +35,7 @@ class BankSyncWorker(
             val categoryRepository: CategoryRepository = getKoin().get()
             val accountRepository: AccountRepository = getKoin().get()
             val syncStatusRepository: SyncStatusRepository = getKoin().get()
+            val notifPrefsRepository: NotificationPrefsRepository = getKoin().get()
             val budgetCalculatorUseCase: BudgetCalculatorUseCase = getKoin().get()
 
             // 1. Check if SimpleFIN is configured
@@ -89,8 +91,9 @@ class BankSyncWorker(
                 }
             }
 
-            // 5. Send smart sync notification if new items arrived
-            if (newTxs.isNotEmpty()) {
+            // 5. Send smart sync notification if new items arrived AND review alerts are opted in
+            val reviewAlertsOn = notifPrefsRepository.reviewAlerts.value
+            if (newTxs.isNotEmpty() && reviewAlertsOn) {
                 NotificationHelper.sendSyncSummaryNotification(
                     context = appContext,
                     newTxCount = newTxs.size,
@@ -107,22 +110,24 @@ class BankSyncWorker(
                 }
             }
 
-            // 6. Check budget limits and send warnings (Functional #9)
-            val budgets = budgetRepository.getBudgetsFlow().firstOrNull()?.getOrNull().orEmpty()
-            val incomeCategory = categoryRepository.getIncomeCategory()
-            val calculation = budgetCalculatorUseCase.calculate(budgets, afterTxs, incomeCategory)
+            // 6. Check budget limits and send warnings (only if budget alerts are opted in)
+            if (notifPrefsRepository.budgetAlerts.value) {
+                val budgets = budgetRepository.getBudgetsFlow().firstOrNull()?.getOrNull().orEmpty()
+                val incomeCategory = categoryRepository.getIncomeCategory()
+                val calculation = budgetCalculatorUseCase.calculate(budgets, afterTxs, incomeCategory)
 
-            calculation.calculatedBudgets.forEach { budget ->
-                if (budget.effectiveTargetAmount > 0) {
-                    val percent = budget.spentAmount / budget.effectiveTargetAmount
-                    if (percent >= 0.90) {
-                        NotificationHelper.sendBudgetWarningNotification(
-                            context = appContext,
-                            category = budget.displayName,
-                            percent = percent,
-                            spent = budget.spentAmount,
-                            limit = budget.effectiveTargetAmount
-                        )
+                calculation.calculatedBudgets.forEach { budget ->
+                    if (budget.effectiveTargetAmount > 0) {
+                        val percent = budget.spentAmount / budget.effectiveTargetAmount
+                        if (percent >= 0.90) {
+                            NotificationHelper.sendBudgetWarningNotification(
+                                context = appContext,
+                                category = budget.displayName,
+                                percent = percent,
+                                spent = budget.spentAmount,
+                                limit = budget.effectiveTargetAmount
+                            )
+                        }
                     }
                 }
             }
