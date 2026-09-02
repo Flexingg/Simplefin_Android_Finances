@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.DashboardCardType
+import com.randallengineering.finances.domain.model.SimpleFinAccount
 import com.randallengineering.finances.domain.model.Transaction
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
@@ -157,6 +158,7 @@ private fun DashboardCard(
         DashboardCardType.RECENT_TRANSACTIONS -> RecentTransactionsCard(state.recentTransactions, onNavigateToTransactions)
         DashboardCardType.NEEDS_REVIEW -> NeedsReviewCard(state.uncategorizedCount, onNavigateToQueue)
         DashboardCardType.QUICK_ACTIONS -> QuickActionsCard(onNavigateToQueue, onNavigateToBudgets, onNavigateToInsights)
+        DashboardCardType.ACCOUNTS -> AccountsCard(state.accounts, state.accountTxCounts)
     }
 }
 
@@ -523,6 +525,64 @@ private fun EmptyState(onNavigateToSettings: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun AccountsCard(accounts: List<SimpleFinAccount>, txCounts: Map<String, Int>) {
+    Card(
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Accounts", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            if (accounts.isEmpty()) {
+                Text(
+                    "Connect a bank account to see per-account balances here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                accounts.forEachIndexed { i, acc ->
+                    if (i > 0) HorizontalDivider()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = acc.name.ifBlank { "Account" },
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            val count = txCounts[acc.id] ?: 0
+                            val org = acc.orgName
+                            val sub = when {
+                                org.isNotBlank() && count > 0 -> "$org · $count transactions"
+                                count > 0 -> "$count transactions"
+                                org.isNotBlank() -> org
+                                else -> "no transactions yet"
+                            }
+                            Text(
+                                text = sub,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = CurrencyFormatter.format(acc.balance),
+                            fontWeight = FontWeight.Bold,
+                            color = if (acc.balance >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
         }
     }
 }

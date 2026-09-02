@@ -42,6 +42,7 @@ data class DashboardUiState(
     val uncategorizedCount: Int = 0,
     val hasTransactions: Boolean = false,
     val accounts: List<SimpleFinAccount> = emptyList(),
+    val accountTxCounts: Map<String, Int> = emptyMap(),
     val netWorth: Double = 0.0,
     val hasLiveBalances: Boolean = false,
     val enabledCards: List<DashboardCardType> = DashboardCardType.entries.toList(),
@@ -113,6 +114,7 @@ class DashboardViewModel(
                             topCategories = metrics.topCategories,
                             recentTransactions = metrics.recent,
                             uncategorizedCount = metrics.uncategorized,
+                            accountTxCounts = list.groupingBy { it.accountId }.eachCount(),
                             hasTransactions = list.isNotEmpty(),
                             isLoading = resource.isLoading
                         )
