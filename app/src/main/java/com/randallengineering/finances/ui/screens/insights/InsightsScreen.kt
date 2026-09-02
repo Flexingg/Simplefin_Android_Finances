@@ -1,6 +1,7 @@
 package com.randallengineering.finances.ui.screens.insights
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -59,6 +60,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import com.randallengineering.finances.data.repository.NetWorthPoint
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -423,6 +426,11 @@ private fun NetWorthAndDebtTabContent(
             }
         }
 
+        // Net Worth Trend (weekly real-balance snapshots)
+        item {
+            NetWorthTrendCard(history = uiState.netWorthHistory, current = uiState.liveNetWorth)
+        }
+
         // Debt Payoff Simulator
         item {
             ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
@@ -484,7 +492,7 @@ private fun NetWorthAndDebtTabContent(
                                 .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("Time to Debt-Free", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${sim.estimatedMonthsToDebtFree} Months", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceBlueDark)
                             }
@@ -493,6 +501,92 @@ private fun NetWorthAndDebtTabContent(
                                 Text(CurrencyFormatter.format(sim.totalInterestPaid), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = FinanceRedDark)
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetWorthTrendCard(history: List<NetWorthPoint>, current: Double?) {
+    ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.ShowChart, contentDescription = null, tint = FinanceGreen)
+                Spacer(Modifier.width(8.dp))
+                Text("Net Worth Trend", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            }
+
+            if (history.isEmpty()) {
+                Text(
+                    "No net-worth history yet. Net worth snapshots are recorded each week after a successful bank sync.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                val latest = history.last().netWorth
+                val first = history.first().netWorth
+                val delta = latest - first
+                Text(
+                    text = CurrencyFormatter.format(current ?: latest),
+                    fontWeight = FontWeight.Black,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = FinanceGreen
+                )
+                Text(
+                    text = "Snapshot ${history.size} week${if (history.size == 1) "" else "s"} · ${if (delta >= 0) "+" else ""}${CurrencyFormatter.format(delta)} since start",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (delta >= 0) FinanceGreen else FinanceRed
+                )
+
+                if (history.size >= 2) {
+                    val values = history.map { it.netWorth }
+                    val minVal = values.min()
+                    val maxVal = values.max()
+                    val range = (maxVal - minVal).takeIf { it > 0 } ?: 1.0
+                    val lineColor = FinanceGreen
+
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                    ) {
+                        val n = values.size
+                        val stepX = size.width / (n - 1).toFloat()
+                        fun yFor(v: Double): Float = size.height - ((v - minVal) / range * size.height).toFloat()
+
+                        val fillPath = Path().apply {
+                            moveTo(0f, size.height)
+                            values.forEachIndexed { i, v ->
+                                lineTo(i * stepX, yFor(v))
+                            }
+                            lineTo(size.width, size.height)
+                            close()
+                        }
+                        drawPath(fillPath, color = lineColor.copy(alpha = 0.18f))
+
+                        val linePath = Path().apply {
+                            moveTo(0f, yFor(values[0]))
+                            values.drop(1).forEachIndexed { i, v ->
+                                lineTo((i + 1) * stepX, yFor(v))
+                            }
+                        }
+                        drawPath(linePath, color = lineColor, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6f))
+
+                        values.forEachIndexed { i, v ->
+                            drawCircle(color = lineColor, radius = 8f, center = androidx.compose.ui.geometry.Offset(i * stepX, yFor(v)))
+                        }
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("${CurrencyFormatter.format(maxVal)} max", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${CurrencyFormatter.format(minVal)} min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

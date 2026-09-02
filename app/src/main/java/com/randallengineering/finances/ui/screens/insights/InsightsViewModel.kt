@@ -2,6 +2,8 @@ package com.randallengineering.finances.ui.screens.insights
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.randallengineering.finances.data.repository.NetWorthRepository
+import com.randallengineering.finances.data.repository.NetWorthPoint
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Transaction
 import kotlinx.coroutines.Dispatchers
@@ -87,12 +89,15 @@ data class InsightsUiState(
     val currentMonthHeatmap: List<HeatmapDayItem> = emptyList(),
     val topMerchants: List<MerchantSpendItem> = emptyList(),
     val estimatedNetWorth: Double = 0.0,
+    val netWorthHistory: List<NetWorthPoint> = emptyList(),
+    val liveNetWorth: Double? = null,
     val debtSimulation: DebtPayoffSimulation = DebtPayoffSimulation(),
     val isLoading: Boolean = false
 )
 
 class InsightsViewModel(
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val netWorthRepository: NetWorthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InsightsUiState())
@@ -100,6 +105,20 @@ class InsightsViewModel(
 
     init {
         observeTransactions()
+        observeNetWorth()
+    }
+
+    private fun observeNetWorth() {
+        viewModelScope.launch {
+            netWorthRepository.snapshots.collect { history ->
+                _uiState.update {
+                    it.copy(
+                        netWorthHistory = history,
+                        liveNetWorth = history.lastOrNull()?.netWorth
+                    )
+                }
+            }
+        }
     }
 
     private fun observeTransactions() {

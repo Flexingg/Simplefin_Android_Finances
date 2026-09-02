@@ -38,6 +38,7 @@ import com.randallengineering.finances.ui.screens.ai.AiChatbotViewModel
 
 import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.AmazonRepository
+import com.randallengineering.finances.data.repository.NetWorthRepository
 import com.randallengineering.finances.data.repository.SyncStatusRepository
 import com.randallengineering.finances.data.local.FinanceDatabase
 import com.randallengineering.finances.ui.screens.insights.InsightsViewModel
@@ -67,7 +68,8 @@ val appModule = module {
     single { CategoryRepository(androidContext(), getOrNull()) }
     single { AccountRepository(androidContext()) }
     single { SyncStatusRepository(androidContext()) }
-    single { SimpleFinRepository(androidContext(), get(), get(), getOrNull(), getOrNull()) }
+    single { NetWorthRepository(androidContext()) }
+    single { SimpleFinRepository(androidContext(), get(), get(), get(), getOrNull(), getOrNull()) }
     single { AmazonRepository(androidContext()) }
 
     // MCP Tools Suite
@@ -89,7 +91,7 @@ val appModule = module {
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RulesViewModel(get(), get()) }
     viewModel { BudgetsViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { InsightsViewModel(get()) }
+    viewModel { InsightsViewModel(get(), get()) }
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }

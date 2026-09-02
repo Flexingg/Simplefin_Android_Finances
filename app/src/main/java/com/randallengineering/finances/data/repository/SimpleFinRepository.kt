@@ -24,6 +24,7 @@ class SimpleFinRepository(
     private val context: Context,
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
+    private val netWorthRepository: NetWorthRepository,
     private val functions: FirebaseFunctions? = null,
     private val firestore: FirebaseFirestore? = null
 ) {
@@ -223,6 +224,8 @@ class SimpleFinRepository(
             }
             if (allAccountsMap.isNotEmpty()) {
                 accountRepository.saveAccounts(allAccountsMap.values.toList())
+                val netWorth = allAccountsMap.values.sumOf { it.balance }
+                netWorthRepository.recordIfNewWeek(netWorth)
             }
 
             prefs.edit()
