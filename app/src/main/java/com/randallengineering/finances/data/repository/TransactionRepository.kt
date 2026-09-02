@@ -2,9 +2,11 @@ package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
-import com.randallengineering.finances.core.auth.SyncScope
 import com.google.firebase.firestore.Query
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.data.local.TransactionDao
+import com.randallengineering.finances.data.local.TransactionRow
 import com.randallengineering.finances.data.model.TransactionEntity
 import com.randallengineering.finances.data.model.TransactionSplitEntity
 import com.randallengineering.finances.domain.model.Transaction
@@ -12,8 +14,6 @@ import com.randallengineering.finances.domain.model.TransactionSplit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -23,118 +23,80 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
+/**
+ * Transaction persistence backed by a local Room DB (replaces the fragile
+ * single-JSON-blob SharedPreferences cache). The public API is unchanged so no
+ * screen/view-model code needed touching.
+ */
 class TransactionRepository(
-    private val context: Context,
+    context: Context,
+    private val dao: TransactionDao,
     private val firestore: FirebaseFirestore? = null
 ) {
-    private val prefs = context.getSharedPreferences("randall_finances_txs", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
     private val ioScope = CoroutineScope(Dispatchers.IO)
 
-    private val _transactionsFlow = MutableStateFlow<List<Transaction>>(emptyList())
-
     init {
         ioScope.launch {
-            loadLocalTransactions()
+            migrateFromSharedPreferencesIfNeeded(context)
             attachFirestoreListenerIfAvailable()
         }
     }
 
-    private suspend fun loadLocalTransactions() = withContext(Dispatchers.IO) {
+    /** One-time copy of any legacy SharedPreferences cache into Room. */
+    private suspend fun migrateFromSharedPreferencesIfNeeded(context: Context) {
         try {
+            if (dao.count() > 0) return
+            val prefs = context.getSharedPreferences("randall_finances_txs", Context.MODE_PRIVATE)
             val raw = prefs.getString("cached_txs", null)
             if (!raw.isNullOrBlank()) {
-                val list = json.decodeFromString<List<Transaction>>(raw)
-                _transactionsFlow.value = sanitize(list)
+                val legacy = json.decodeFromString<List<Transaction>>(raw)
+                if (legacy.isNotEmpty()) dao.upsertAll(legacy.map { toRow(sanitize(it)) })
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            // Corrupt/missing legacy cache — Room starts empty, fine.
         }
     }
 
-    private suspend fun saveLocalTransactions(list: List<Transaction>) = withContext(Dispatchers.IO) {
-        try {
-            // Guarantee every transaction has a unique, non-blank id and a finite
-            // amount so no screen's LazyColumn(key = { it.id }) can ever throw on a
-            // duplicate key, and CurrencyFormatter can't choke on NaN/Infinity.
-            val sorted = sanitize(list)
-            _transactionsFlow.value = sorted
-            prefs.edit().putString("cached_txs", json.encodeToString(sorted)).apply()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private fun toRow(tx: Transaction): TransactionRow = TransactionRow(
+        id = tx.id,
+        postedEpochSeconds = tx.postedEpochSeconds,
+        json = json.encodeToString(tx)
+    )
+
+    private fun decodeRow(row: TransactionRow): Transaction? = try {
+        json.decodeFromString<Transaction>(row.json)
+    } catch (e: Exception) {
+        null
     }
 
-    private fun sanitize(list: List<Transaction>): List<Transaction> {
-        val seen = mutableSetOf<String>()
-        return list.mapNotNull { tx ->
-            val id = tx.id.ifBlank { UUID.randomUUID().toString() }
-            if (seen.add(id)) {
-                tx.copy(
-                    id = id,
-                    amount = if (tx.amount.isFinite()) tx.amount else 0.0
-                )
-            } else null
-        }.sortedByDescending { it.postedEpochSeconds }
-    }
-
-    private fun attachFirestoreListenerIfAvailable() {
-        try {
-            firestore?.collection(SyncScope.path("transactions"))
-                ?.orderBy("postedEpochSeconds", Query.Direction.DESCENDING)
-                ?.addSnapshotListener { snapshot, error ->
-                    if (error == null && snapshot != null && !snapshot.isEmpty) {
-                        ioScope.launch {
-                            try {
-                                val firestoreList = snapshot.documents.mapNotNull { doc ->
-                                    doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                                }
-                                if (firestoreList.isNotEmpty()) {
-                                    saveLocalTransactions(firestoreList)
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
-                    }
-                }
-        } catch (e: Exception) {
-            // Firestore not initialized or offline - local storage handles everything seamlessly
-        }
-    }
+    private fun sanitize(tx: Transaction): Transaction = tx.copy(
+        id = tx.id.ifBlank { UUID.randomUUID().toString() },
+        amount = if (tx.amount.isFinite()) tx.amount else 0.0
+    )
 
     fun getTransactionsFlow(): Flow<Resource<List<Transaction>>> {
-        return _transactionsFlow.asStateFlow()
-            .map { list -> Resource.Success(list) }
+        return dao.observeAll()
+            .map { rows ->
+                Resource.Success(rows.mapNotNull { decodeRow(it) })
+            }
             .flowOn(Dispatchers.Default)
     }
 
     suspend fun getTransactionById(id: String): Resource<Transaction> = withContext(Dispatchers.Default) {
-        val found = _transactionsFlow.value.find { it.id == id }
-        if (found != null) {
-            Resource.Success(found)
-        } else {
-            Resource.Error("Transaction not found")
-        }
+        val row = dao.getById(id)
+        val tx = row?.let { decodeRow(it) }
+        if (tx != null) Resource.Success(tx) else Resource.Error("Transaction not found")
     }
 
     suspend fun saveTransaction(transaction: Transaction): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            val current = _transactionsFlow.value.toMutableList()
-            val index = current.indexOfFirst { it.id == transaction.id }
-            if (index >= 0) {
-                current[index] = transaction
-            } else {
-                current.add(0, transaction)
-            }
-            saveLocalTransactions(current)
-
-            // Sync to Firestore if available
+            val safe = sanitize(transaction)
+            dao.upsert(toRow(safe))
             firestore?.collection(SyncScope.path("transactions"))
-                ?.document(transaction.id)
-                ?.set(TransactionEntity.fromDomain(transaction))
+                ?.document(safe.id)
+                ?.set(TransactionEntity.fromDomain(safe))
                 ?.await()
-
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed to save transaction")
@@ -143,20 +105,16 @@ class TransactionRepository(
 
     suspend fun saveTransactions(transactions: List<Transaction>): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            val currentMap = _transactionsFlow.value.associateBy { it.id }.toMutableMap()
-            transactions.forEach { currentMap[it.id] = it }
-            val merged = currentMap.values.toList()
-            saveLocalTransactions(merged)
-
+            val rows = transactions.map { toRow(sanitize(it)) }
+            dao.upsertAll(rows)
             firestore?.let { db ->
                 val batch = db.batch()
-                transactions.forEach { tx ->
-                    val docRef = db.collection(SyncScope.path("transactions")).document(tx.id)
-                    batch.set(docRef, TransactionEntity.fromDomain(tx))
+                rows.forEach { row ->
+                    val tx = decodeRow(row) ?: return@forEach
+                    batch.set(db.collection(SyncScope.path("transactions")).document(tx.id), TransactionEntity.fromDomain(tx))
                 }
                 batch.commit().await()
             }
-
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed to save transactions")
@@ -165,18 +123,14 @@ class TransactionRepository(
 
     suspend fun attachReceiptUrl(transactionId: String, receiptUrl: String): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            val current = _transactionsFlow.value.toMutableList()
-            val index = current.indexOfFirst { it.id == transactionId }
-            if (index >= 0) {
-                val updated = current[index].copy(receiptUrls = current[index].receiptUrls + receiptUrl)
-                current[index] = updated
-                saveLocalTransactions(current)
-
-                firestore?.collection(SyncScope.path("transactions"))
-                    ?.document(transactionId)
-                    ?.update("receiptUrls", updated.receiptUrls)
-                    ?.await()
-            }
+            val row = dao.getById(transactionId) ?: return@withContext Resource.Error("Transaction not found")
+            val current = decodeRow(row) ?: return@withContext Resource.Error("Transaction not found")
+            val updated = current.copy(receiptUrls = current.receiptUrls + receiptUrl)
+            dao.upsert(toRow(updated))
+            firestore?.collection(SyncScope.path("transactions"))
+                ?.document(transactionId)
+                ?.update("receiptUrls", updated.receiptUrls)
+                ?.await()
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed to attach receipt")
@@ -188,26 +142,15 @@ class TransactionRepository(
         splits: List<TransactionSplit>
     ): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            val current = _transactionsFlow.value.toMutableList()
-            val index = current.indexOfFirst { it.id == transactionId }
-            if (index >= 0) {
-                val updated = current[index].copy(
-                    splits = splits
-                )
-                current[index] = updated
-                saveLocalTransactions(current)
-
-                val splitEntities = splits.map { TransactionSplitEntity.fromDomain(it) }
-                firestore?.collection(SyncScope.path("transactions"))
-                    ?.document(transactionId)
-                    ?.update(
-                        mapOf(
-                            "isSplit" to (splits.isNotEmpty()),
-                            "splits" to splitEntities
-                        )
-                    )
-                    ?.await()
-            }
+            val row = dao.getById(transactionId) ?: return@withContext Resource.Error("Transaction not found")
+            val current = decodeRow(row) ?: return@withContext Resource.Error("Transaction not found")
+            val updated = current.copy(splits = splits)
+            dao.upsert(toRow(updated))
+            val splitEntities = splits.map { TransactionSplitEntity.fromDomain(it) }
+            firestore?.collection(SyncScope.path("transactions"))
+                ?.document(transactionId)
+                ?.update(mapOf("isSplit" to (splits.isNotEmpty()), "splits" to splitEntities))
+                ?.await()
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed to save splits")
@@ -216,17 +159,34 @@ class TransactionRepository(
 
     suspend fun deleteTransaction(id: String): Resource<Unit> = withContext(Dispatchers.IO) {
         try {
-            val current = _transactionsFlow.value.filterNot { it.id == id }
-            saveLocalTransactions(current)
-
-            firestore?.collection(SyncScope.path("transactions"))
-                ?.document(id)
-                ?.delete()
-                ?.await()
-
+            dao.delete(id)
+            firestore?.collection(SyncScope.path("transactions"))?.document(id)?.delete()?.await()
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed to delete transaction")
+        }
+    }
+
+    private fun attachFirestoreListenerIfAvailable() {
+        try {
+            firestore?.collection(SyncScope.path("transactions"))
+                ?.orderBy("postedEpochSeconds", Query.Direction.DESCENDING)
+                ?.addSnapshotListener { snapshot, error ->
+                    if (error == null && snapshot != null && !snapshot.isEmpty) {
+                        ioScope.launch {
+                            try {
+                                val rows = snapshot.documents.mapNotNull { doc ->
+                                    doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                                }.map { toRow(sanitize(it)) }
+                                if (rows.isNotEmpty()) dao.upsertAll(rows)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+                }
+        } catch (e: Exception) {
+            // Firestore not initialized or offline - Room handles everything locally.
         }
     }
 }

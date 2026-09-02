@@ -38,6 +38,7 @@ import com.randallengineering.finances.ui.screens.ai.AiChatbotViewModel
 
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.AccountRepository
+import com.randallengineering.finances.data.local.FinanceDatabase
 import com.randallengineering.finances.ui.screens.insights.InsightsViewModel
 
 val appModule = module {
@@ -52,8 +53,12 @@ val appModule = module {
     single { SessionManager(androidContext(), get()) }
     single { com.randallengineering.finances.core.prefs.DashboardLayoutRepository(androidContext()) }
 
+    // Local Room database
+    single { androidx.room.Room.databaseBuilder(androidContext(), FinanceDatabase::class.java, "randall_finances.db").build() }
+    single { get<FinanceDatabase>().transactionDao() }
+
     // Repositories (with local storage & offline fallback)
-    single { TransactionRepository(androidContext(), getOrNull()) }
+    single { TransactionRepository(androidContext(), get(), getOrNull()) }
     single { RuleRepository(androidContext(), getOrNull()) }
     single { BudgetRepository(androidContext(), getOrNull()) }
     single { GoalRepository(androidContext(), getOrNull()) }
