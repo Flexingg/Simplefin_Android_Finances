@@ -7,6 +7,7 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.network.SimpleFinAccountsResponse
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
+import com.randallengineering.finances.domain.model.SimpleFinAccount
 import com.randallengineering.finances.domain.model.Transaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +23,7 @@ import kotlin.math.min
 class SimpleFinRepository(
     private val context: Context,
     private val transactionRepository: TransactionRepository,
+    private val accountRepository: AccountRepository,
     private val functions: FirebaseFunctions? = null,
     private val firestore: FirebaseFirestore? = null
 ) {
@@ -145,6 +147,7 @@ class SimpleFinRepository(
             val batchWindowDays = 89L // 89-day batch window to stay strictly under SimpleFIN's 90-day limit
 
             val allTransactionsMap = mutableMapOf<String, Transaction>()
+            val allAccountsMap = mutableMapOf<String, SimpleFinAccount>()
             val collectedErrors = mutableListOf<String>()
 
             var currentOffsetDays = 0L
@@ -178,6 +181,16 @@ class SimpleFinRepository(
                         collectedErrors.addAll(data.allErrors)
 
                         for (acc in data.accounts) {
+                            // Capture live account + balance (source of truth for net worth).
+                            allAccountsMap[acc.id] = SimpleFinAccount(
+                                id = acc.id,
+                                name = acc.name.ifBlank { acc.org?.name ?: acc.id },
+                                orgName = acc.org?.name ?: "",
+                                currency = acc.currency,
+                                balance = acc.balance.toDoubleOrNull() ?: 0.0,
+                                availableBalance = acc.availableBalance?.toDoubleOrNull(),
+                                balanceDateEpochSeconds = acc.balanceDate
+                            )
                             for (tx in acc.transactions) {
                                 val amountDouble = tx.amount.toDoubleOrNull() ?: 0.0
                                 allTransactionsMap[tx.id] = Transaction(
@@ -207,6 +220,9 @@ class SimpleFinRepository(
 
             if (allTransactionsMap.isNotEmpty()) {
                 transactionRepository.saveTransactions(allTransactionsMap.values.toList())
+            }
+            if (allAccountsMap.isNotEmpty()) {
+                accountRepository.saveAccounts(allAccountsMap.values.toList())
             }
 
             prefs.edit()

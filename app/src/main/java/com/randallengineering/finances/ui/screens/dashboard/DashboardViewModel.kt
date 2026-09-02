@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.prefs.DashboardLayoutRepository
+import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.DashboardCardType
+import com.randallengineering.finances.domain.model.SimpleFinAccount
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.usecase.BudgetCalculatorUseCase
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,9 @@ data class DashboardUiState(
     val recentTransactions: List<Transaction> = emptyList(),
     val uncategorizedCount: Int = 0,
     val hasTransactions: Boolean = false,
+    val accounts: List<SimpleFinAccount> = emptyList(),
+    val netWorth: Double = 0.0,
+    val hasLiveBalances: Boolean = false,
     val enabledCards: List<DashboardCardType> = DashboardCardType.entries.toList(),
     val fullLayout: List<Pair<DashboardCardType, Boolean>> = DashboardCardType.entries.map { it to true },
     val isLoading: Boolean = false
@@ -48,7 +53,8 @@ class DashboardViewModel(
     private val transactionRepository: TransactionRepository,
     private val budgetRepository: BudgetRepository,
     private val budgetCalculatorUseCase: BudgetCalculatorUseCase,
-    private val layoutRepository: DashboardLayoutRepository
+    private val layoutRepository: DashboardLayoutRepository,
+    private val accountRepository: AccountRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -61,6 +67,23 @@ class DashboardViewModel(
         loadLayout()
         observeTransactions()
         observeBudgets()
+        observeAccounts()
+    }
+
+    private fun observeAccounts() {
+        viewModelScope.launch {
+            accountRepository.getAccountsFlow().collect { resource ->
+                val accounts = resource.getOrNull().orEmpty()
+                val netWorth = if (accounts.isNotEmpty()) accounts.sumOf { it.balance } else 0.0
+                _uiState.update {
+                    it.copy(
+                        accounts = accounts,
+                        netWorth = netWorth,
+                        hasLiveBalances = accounts.isNotEmpty()
+                    )
+                }
+            }
+        }
     }
 
     private fun loadLayout() {

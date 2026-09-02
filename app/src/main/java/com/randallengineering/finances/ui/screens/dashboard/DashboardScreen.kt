@@ -142,7 +142,11 @@ private fun DashboardCard(
 ) {
     val scheme = MaterialTheme.colorScheme
     when (type) {
-        DashboardCardType.TOTAL_BALANCE -> HeroBalanceCard(state.totalBalance)
+        DashboardCardType.TOTAL_BALANCE -> HeroBalanceCard(
+            balance = if (state.hasLiveBalances) state.netWorth else state.totalBalance,
+            accountCount = state.accounts.size,
+            isLive = state.hasLiveBalances
+        )
         DashboardCardType.MONTH_INCOME -> StatCard("Income this month", CurrencyFormatter.format(state.monthIncome), scheme.primary)
         DashboardCardType.MONTH_EXPENSE -> StatCard("Spending this month", CurrencyFormatter.format(state.monthExpenses), MaterialTheme.colorScheme.error)
         DashboardCardType.MONTH_NET -> StatCard("Net this month", CurrencyFormatter.format(state.monthNet), if (state.monthNet >= 0) scheme.primary else MaterialTheme.colorScheme.error)
@@ -157,7 +161,7 @@ private fun DashboardCard(
 }
 
 @Composable
-private fun HeroBalanceCard(balance: Double) {
+private fun HeroBalanceCard(balance: Double, accountCount: Int, isLive: Boolean) {
     val scheme = MaterialTheme.colorScheme
     Card(
         shape = MaterialTheme.shapes.extraLarge,
@@ -168,12 +172,21 @@ private fun HeroBalanceCard(balance: Double) {
             modifier = Modifier.padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text("Total Balance", style = MaterialTheme.typography.labelLarge, color = scheme.onPrimaryContainer)
+            Text(
+                text = if (isLive) "Net Worth" else "Total Balance",
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.onPrimaryContainer
+            )
             Text(
                 CurrencyFormatter.format(balance),
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Black,
                 color = scheme.onPrimaryContainer
+            )
+            Text(
+                text = if (isLive) "Across $accountCount connected account(s)" else "From synced transactions",
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onPrimaryContainer.copy(alpha = 0.8f)
             )
         }
     }
