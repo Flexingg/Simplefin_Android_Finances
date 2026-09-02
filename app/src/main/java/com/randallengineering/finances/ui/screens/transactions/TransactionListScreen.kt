@@ -155,6 +155,42 @@ fun TransactionListScreen(
                         }
                     }
                 }
+
+                // Account Filter Chips (only accounts that have transactions)
+                val accountsForFilter = remember(uiState.accounts, uiState.transactions) {
+                    uiState.accounts.filter { acc -> uiState.transactions.any { it.accountId == acc.id } }
+                }
+                if (accountsForFilter.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        FilterChip(
+                            selected = uiState.selectedAccountId == null,
+                            onClick = { viewModel.onAccountFilterSelect(null) },
+                            label = { Text("All accounts") },
+                            shape = Shapes.small,
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        )
+                        accountsForFilter.forEach { acc ->
+                            FilterChip(
+                                selected = uiState.selectedAccountId == acc.id,
+                                onClick = { viewModel.onAccountFilterSelect(acc.id) },
+                                label = { Text(acc.name.ifBlank { "Account" }) },
+                                shape = Shapes.small,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            )
+                        }
+                    }
+                }
             }
 
             // Content Area

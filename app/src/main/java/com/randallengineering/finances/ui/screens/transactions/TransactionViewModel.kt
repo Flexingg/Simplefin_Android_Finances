@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.ml.ParsedReceipt
 import com.randallengineering.finances.core.ml.ReceiptOcrScanner
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
 import com.randallengineering.finances.data.repository.RuleRepository
@@ -32,6 +33,8 @@ data class TransactionsUiState(
     val categories: List<CategoryHierarchy> = emptyList(),
     val searchQuery: String = "",
     val selectedCategoryFilter: String? = null,
+    val selectedAccountId: String? = null,
+    val accounts: List<com.randallengineering.finances.domain.model.SimpleFinAccount> = emptyList(),
     val isLoading: Boolean = false,
     val selectedTransactionForSplit: Transaction? = null,
     val selectedTransactionForCategoryPicker: Transaction? = null,
@@ -50,7 +53,8 @@ class TransactionViewModel(
     private val amazonRepository: AmazonRepository,
     private val ruleMatcherUseCase: RuleMatcherUseCase,
     private val transactionSplitUseCase: TransactionSplitUseCase,
-    private val storageRepository: StorageRepository
+    private val storageRepository: StorageRepository,
+    private val accountRepository: AccountRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TransactionsUiState())
@@ -58,6 +62,16 @@ class TransactionViewModel(
 
     init {
         observeData()
+        observeAccounts()
+    }
+
+    private fun observeAccounts() {
+        viewModelScope.launch {
+            accountRepository.getAccountsFlow().collect { resource ->
+                val accounts = resource.getOrNull().orEmpty()
+                _uiState.update { it.copy(accounts = accounts) }
+            }
+        }
     }
 
     private fun observeData() {
@@ -81,7 +95,8 @@ class TransactionViewModel(
                         filteredTransactions = applyFilter(
                             transactions,
                             current.searchQuery,
-                            current.selectedCategoryFilter
+                            current.selectedCategoryFilter,
+                            current.selectedAccountId
                         )
                     )
                 }
@@ -96,7 +111,8 @@ class TransactionViewModel(
                 filteredTransactions = applyFilter(
                     current.transactions,
                     query,
-                    current.selectedCategoryFilter
+                    current.selectedCategoryFilter,
+                    current.selectedAccountId
                 )
             )
         }
@@ -109,7 +125,8 @@ class TransactionViewModel(
                 filteredTransactions = applyFilter(
                     current.transactions,
                     current.searchQuery,
-                    category
+                    category,
+                    current.selectedAccountId
                 )
             )
         }
@@ -118,7 +135,8 @@ class TransactionViewModel(
     private fun applyFilter(
         transactions: List<Transaction>,
         query: String,
-        categoryFilter: String?
+        categoryFilter: String?,
+        accountId: String?
     ): List<Transaction> {
         return transactions.filter { tx ->
             val matchesQuery = query.isBlank() ||
@@ -131,7 +149,23 @@ class TransactionViewModel(
             val matchesCategory = categoryFilter == null ||
                     tx.category.equals(categoryFilter, ignoreCase = true)
 
-            matchesQuery && matchesCategory
+            val matchesAccount = accountId == null || tx.accountId == accountId
+
+            matchesQuery && matchesCategory && matchesAccount
+        }
+    }
+
+    fun onAccountFilterSelect(accountId: String?) {
+        _uiState.update { current ->
+            current.copy(
+                selectedAccountId = accountId,
+                filteredTransactions = applyFilter(
+                    current.transactions,
+                    current.searchQuery,
+                    current.selectedCategoryFilter,
+                    accountId
+                )
+            )
         }
     }
 

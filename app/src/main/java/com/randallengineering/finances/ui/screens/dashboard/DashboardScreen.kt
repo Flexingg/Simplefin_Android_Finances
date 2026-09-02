@@ -148,8 +148,8 @@ private fun DashboardCard(
             accountCount = state.accounts.size,
             isLive = state.hasLiveBalances
         )
-        DashboardCardType.MONTH_INCOME -> StatCard("Income this month", CurrencyFormatter.format(state.monthIncome), scheme.primary)
-        DashboardCardType.MONTH_EXPENSE -> StatCard("Spending this month", CurrencyFormatter.format(state.monthExpenses), MaterialTheme.colorScheme.error)
+        DashboardCardType.MONTH_INCOME -> MonthStatCard("Income this month", state.monthIncome, state.incomeDeltaPct, scheme.primary, upIsGood = true)
+        DashboardCardType.MONTH_EXPENSE -> MonthStatCard("Spending this month", state.monthExpenses, state.expenseDeltaPct, MaterialTheme.colorScheme.error, upIsGood = false)
         DashboardCardType.MONTH_NET -> StatCard("Net this month", CurrencyFormatter.format(state.monthNet), if (state.monthNet >= 0) scheme.primary else MaterialTheme.colorScheme.error)
         DashboardCardType.SAVINGS_RATE -> StatCard("Savings rate", String.format(Locale.US, "%.0f%%", state.savingsRate), scheme.primary)
         DashboardCardType.DAILY_ALLOWANCE -> StatCard("Daily allowance", "${CurrencyFormatter.format(state.dailyAllowance)}/day", scheme.primary)
@@ -582,6 +582,43 @@ private fun AccountsCard(accounts: List<SimpleFinAccount>, txCounts: Map<String,
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthStatCard(label: String, value: Double, deltaPct: Double?, color: Color, upIsGood: Boolean) {
+    Card(
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                CurrencyFormatter.format(value),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            if (deltaPct != null) {
+                val d = deltaPct
+                val good = if (upIsGood) d >= 0 else d <= 0
+                val arrow = if (d >= 0) "▲" else "▼"
+                Text(
+                    text = "$arrow ${String.format(Locale.US, "%.1f%%", Math.abs(d))} vs last month",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (good) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+            } else {
+                Text(
+                    "No prior-month data yet",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

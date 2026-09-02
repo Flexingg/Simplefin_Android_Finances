@@ -90,7 +90,7 @@ val appModule = module {
     viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get()) }
     viewModel { SimpleFinOnboardingViewModel(get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.dashboard.DashboardViewModel(get(), get(), get(), get(), get()) }
-    viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RulesViewModel(get(), get()) }
     viewModel { BudgetsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { InsightsViewModel(get(), get()) }

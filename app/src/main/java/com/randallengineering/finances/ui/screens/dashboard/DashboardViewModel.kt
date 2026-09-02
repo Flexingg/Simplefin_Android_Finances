@@ -35,6 +35,8 @@ data class DashboardUiState(
     val monthExpenses: Double = 0.0,
     val monthNet: Double = 0.0,
     val savingsRate: Double = 0.0,
+    val incomeDeltaPct: Double? = null,
+    val expenseDeltaPct: Double? = null,
     val dailyAllowance: Double = 0.0,
     val budgetAlertCount: Int = 0,
     val topCategories: List<TopCategoryItem> = emptyList(),
@@ -111,6 +113,8 @@ class DashboardViewModel(
                             monthExpenses = metrics.monthExpenses,
                             monthNet = metrics.monthNet,
                             savingsRate = metrics.savingsRate,
+                            incomeDeltaPct = pctDelta(metrics.monthIncome, metrics.lastMonthIncome),
+                            expenseDeltaPct = pctDelta(metrics.monthExpenses, metrics.lastMonthExpenses),
                             topCategories = metrics.topCategories,
                             recentTransactions = metrics.recent,
                             uncategorizedCount = metrics.uncategorized,
@@ -180,14 +184,23 @@ class DashboardViewModel(
         val now = LocalDate.now()
         val monthStart = now.with(TemporalAdjusters.firstDayOfMonth())
             .atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
+        val prevMonthStart = now.minusMonths(1).with(TemporalAdjusters.firstDayOfMonth())
+            .atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
 
         val monthTxs = transactions.filter { it.postedEpochSeconds >= monthStart }
+        val prevMonthTxs = transactions.filter { it.postedEpochSeconds >= prevMonthStart && it.postedEpochSeconds < monthStart }
 
         val totalBalance = transactions.sumOf { it.amount }
         val monthIncome = monthTxs
             .filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }
             .sumOf { abs(it.amount) }
         val monthExpenses = monthTxs
+            .filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }
+            .sumOf { abs(it.amount) }
+        val lastMonthIncome = prevMonthTxs
+            .filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }
+            .sumOf { abs(it.amount) }
+        val lastMonthExpenses = prevMonthTxs
             .filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }
             .sumOf { abs(it.amount) }
         val monthNet = monthIncome - monthExpenses
@@ -217,6 +230,8 @@ class DashboardViewModel(
             totalBalance = totalBalance,
             monthIncome = monthIncome,
             monthExpenses = monthExpenses,
+            lastMonthIncome = lastMonthIncome,
+            lastMonthExpenses = lastMonthExpenses,
             monthNet = monthNet,
             savingsRate = if (monthIncome > 0) (monthNet / monthIncome * 100.0) else 0.0,
             topCategories = topCategories,
@@ -229,6 +244,8 @@ class DashboardViewModel(
         val totalBalance: Double,
         val monthIncome: Double,
         val monthExpenses: Double,
+        val lastMonthIncome: Double,
+        val lastMonthExpenses: Double,
         val monthNet: Double,
         val savingsRate: Double,
         val topCategories: List<TopCategoryItem>,
@@ -236,3 +253,7 @@ class DashboardViewModel(
         val uncategorized: Int
     )
 }
+
+/** Percent change vs last month; null when there's no prior-month data to compare. */
+private fun pctDelta(current: Double, previous: Double): Double? =
+    if (previous > 0) (current - previous) / previous * 100.0 else null
