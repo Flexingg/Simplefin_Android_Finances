@@ -182,6 +182,11 @@ fun SettingsScreen(
                 onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
             )
 
+            CsvImportCard(
+                importing = uiState.isImporting,
+                onImport = { text -> viewModel.importCsv(text) }
+            )
+
             // -------------------------------------------------------------
             // SimpleFIN Sync Section
             // -------------------------------------------------------------
@@ -591,5 +596,63 @@ private fun NotificationSwitchRow(title: String, subtitle: String, checked: Bool
             }
         }
         androidx.compose.material3.Switch(checked = checked, onCheckedChange = onToggle)
+    }
+}
+
+@Composable
+private fun CsvImportCard(importing: Boolean, onImport: (String) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val text = context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()
+                        ?.use { it.readText() }
+                    onImport(text.orEmpty())
+                } catch (_: Exception) {
+                    onImport("")
+                }
+            }
+        }
+    }
+
+    ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.ContentCopy, contentDescription = "Import", tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text("Import transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Load a CSV (this app's export format or a common bank CSV) to add its real transactions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Button(
+                onClick = {
+                    picker.launch(arrayOf("text/*", "text/csv", "application/csv", "text/comma-separated-values"))
+                },
+                enabled = !importing,
+                modifier = Modifier.fillMaxWidth(),
+                shape = Shapes.small
+            ) {
+                if (importing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Importing...")
+                } else {
+                    Text("Choose CSV file")
+                }
+            }
+        }
     }
 }

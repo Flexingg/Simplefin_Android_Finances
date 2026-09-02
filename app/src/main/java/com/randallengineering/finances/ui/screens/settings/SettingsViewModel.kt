@@ -7,6 +7,7 @@ import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.util.CsvExporter
+import com.randallengineering.finances.core.util.CsvImporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.NotificationPrefsRepository
@@ -37,7 +38,8 @@ data class SettingsUiState(
     val errList: List<String> = emptyList(),
     val lastSync: SyncStatusRepository.SyncStatus? = null,
     val budgetAlertsEnabled: Boolean = false,
-    val reviewAlertsEnabled: Boolean = false
+    val reviewAlertsEnabled: Boolean = false,
+    val isImporting: Boolean = false
 )
 
 class SettingsViewModel(
@@ -104,6 +106,28 @@ class SettingsViewModel(
     suspend fun buildBackupCsv(): String {
         val txs = transactionRepository.getTransactionsFlow().first().getOrNull().orEmpty()
         return CsvExporter.toCsv(txs)
+    }
+
+    /** Parse a CSV the user picked and import its real transactions (no fabrication). */
+    fun importCsv(text: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true, errorMessage = null, successMessage = null) }
+            val result = CsvImporter.importTransactions(text)
+            if (result.transactions.isNotEmpty()) {
+                transactionRepository.saveTransactions(result.transactions)
+            }
+            _uiState.update {
+                it.copy(
+                    isImporting = false,
+                    successMessage = if (result.imported > 0) {
+                        val skipText = if (result.skipped > 0) " (skipped ${result.skipped} unparseable rows)" else ""
+                        "Imported ${result.imported} transaction${if (result.imported == 1) "" else "s"}$skipText"
+                    } else {
+                        "No transactions imported" + (result.problems.firstOrNull()?.let { " — $it" } ?: "")
+                    }
+                )
+            }
+        }
     }
 
     fun initSecurityState(context: Context) {
