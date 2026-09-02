@@ -152,4 +152,24 @@ class BudgetCalculatorUseCaseTest {
         assertTrue(diningBudget.isAnomalyOverpacing)
         assertEquals(1, result.anomalies.size)
     }
+
+    @Test
+    fun `only fixed budgets yield zero daily allowance without crashing`() {
+        val budgets = listOf(
+            Budget(
+                id = "b1", category = "Rent",
+                categoryType = BudgetCategoryType.FIXED, targetAmount = 1500.0
+            )
+        )
+        val result = budgetCalculatorUseCase.calculate(
+            budgets = budgets,
+            transactions = emptyList(),
+            startOfMonthEpoch = 0L,
+            endOfMonthEpoch = 5000L,
+            daysRemaining = 10
+        )
+        // Fixed costs are excluded from the discretionary daily allowance.
+        assertEquals(0.0, result.monthlyVariableTarget, 0.001)
+        assertEquals(0.0, result.targetDailyAllowance, 0.001)
+    }
 }
