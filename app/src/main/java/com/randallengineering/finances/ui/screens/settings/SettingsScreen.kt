@@ -276,6 +276,31 @@ fun SettingsScreen(
                                 Text("Sync Transactions Now")
                             }
                         }
+
+                        uiState.lastSync?.let { sync ->
+                            val failed = sync.succeeded == false
+                            Text(
+                                text = buildString {
+                                    append("Last sync: ${sync.syncedAgoText}")
+                                    if (sync.accountCount > 0) {
+                                        append(" · ${sync.accountCount} account${if (sync.accountCount == 1) "" else "s"}")
+                                    }
+                                    if (failed) append(" · FAILED")
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (failed) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                            if (failed) {
+                                Text(
+                                    text = sync.errorMessage ?: "Couldn't reach your bank. Check your connection.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
                     } else {
                         Text(
                             text = "Paste your Setup Token from bridge.simplefin.org to connect your bank accounts.",

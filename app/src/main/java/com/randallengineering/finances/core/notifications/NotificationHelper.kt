@@ -144,4 +144,27 @@ object NotificationHelper {
             // Ignored
         }
     }
+
+    fun sendSyncFailureNotification(context: Context, errorMessage: String?) {
+        try {
+            val title = "⚠️ Background sync failed"
+            val message = errorMessage?.takeIf { it.isNotBlank() }
+                ?.let { "Couldn't refresh your accounts: $it" }
+                ?: "Couldn't refresh your accounts. Check your connection and try again."
+
+            val notification = NotificationCompat.Builder(context, CHANNEL_SYNC)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(getAppLaunchPendingIntent(context))
+                .setAutoCancel(true)
+                .build()
+
+            NotificationManagerCompat.from(context).notify(1002, notification)
+        } catch (e: SecurityException) {
+            // Ignored
+        }
+    }
 }

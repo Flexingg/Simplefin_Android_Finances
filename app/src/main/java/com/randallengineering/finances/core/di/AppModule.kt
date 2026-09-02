@@ -36,8 +36,9 @@ import com.randallengineering.finances.core.ai.FinancialMcpTools
 import com.randallengineering.finances.domain.usecase.AiChatbotUseCase
 import com.randallengineering.finances.ui.screens.ai.AiChatbotViewModel
 
-import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.AccountRepository
+import com.randallengineering.finances.data.repository.AmazonRepository
+import com.randallengineering.finances.data.repository.SyncStatusRepository
 import com.randallengineering.finances.data.local.FinanceDatabase
 import com.randallengineering.finances.ui.screens.insights.InsightsViewModel
 
@@ -65,6 +66,7 @@ val appModule = module {
     single { StorageRepository(get()) }
     single { CategoryRepository(androidContext(), getOrNull()) }
     single { AccountRepository(androidContext()) }
+    single { SyncStatusRepository(androidContext()) }
     single { SimpleFinRepository(androidContext(), get(), get(), getOrNull(), getOrNull()) }
     single { AmazonRepository(androidContext()) }
 
@@ -91,6 +93,6 @@ val appModule = module {
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
 }

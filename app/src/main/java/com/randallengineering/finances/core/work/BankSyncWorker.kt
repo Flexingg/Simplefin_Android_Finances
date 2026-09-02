@@ -5,10 +5,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.notifications.NotificationHelper
+import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.CategoryRepository
 import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
+import com.randallengineering.finances.data.repository.SyncStatusRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.usecase.BudgetCalculatorUseCase
@@ -30,6 +32,8 @@ class BankSyncWorker(
             val ruleRepository: RuleRepository = getKoin().get()
             val budgetRepository: BudgetRepository = getKoin().get()
             val categoryRepository: CategoryRepository = getKoin().get()
+            val accountRepository: AccountRepository = getKoin().get()
+            val syncStatusRepository: SyncStatusRepository = getKoin().get()
             val budgetCalculatorUseCase: BudgetCalculatorUseCase = getKoin().get()
 
             // 1. Check if SimpleFIN is configured
@@ -43,9 +47,13 @@ class BankSyncWorker(
             val beforeTxs = transactionRepository.getTransactionsFlow().firstOrNull()?.getOrNull().orEmpty()
             val beforeIds = beforeTxs.map { it.id }.toSet()
 
-            // 3. Trigger SimpleFIN background sync (90 days)
+            // 3. Trigger SimpleFIN background sync (90 days) — also refreshes account balances
             val syncResult = simpleFinRepository.triggerSync(daysBack = 90)
             if (syncResult is Resource.Error) {
+                val firstFailure = syncStatusRepository.recordFailure(syncResult.message)
+                if (firstFailure) {
+                    NotificationHelper.sendSyncFailureNotification(appContext, syncResult.message)
+                }
                 return@withContext Result.retry()
             }
 
@@ -119,9 +127,17 @@ class BankSyncWorker(
                 }
             }
 
+            // 7. Record successful outcome (incl. refreshed balances)
+            val accountCount = accountRepository.getAccountsFlow().firstOrNull()?.getOrNull()?.size ?: 0
+            syncStatusRepository.recordSuccess(transactionCount = afterTxs.size, accountCount = accountCount)
+
             Result.success()
         } catch (e: Exception) {
             e.printStackTrace()
+            try {
+                val firstFailure = getKoin().get<SyncStatusRepository>().recordFailure(e.localizedMessage)
+                if (firstFailure) NotificationHelper.sendSyncFailureNotification(appContext, e.localizedMessage)
+            } catch (_: Exception) { }
             Result.failure()
         }
     }

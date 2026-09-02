@@ -10,6 +10,7 @@ import com.randallengineering.finances.core.util.CsvExporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
+import com.randallengineering.finances.data.repository.SyncStatusRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.usecase.SimpleFinSyncUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +33,8 @@ data class SettingsUiState(
     val accountDisplayName: String? = null,
     val successMessage: String? = null,
     val errorMessage: String? = null,
-    val errList: List<String> = emptyList()
+    val errList: List<String> = emptyList(),
+    val lastSync: SyncStatusRepository.SyncStatus? = null
 )
 
 class SettingsViewModel(
@@ -40,7 +42,8 @@ class SettingsViewModel(
     private val simpleFinRepository: SimpleFinRepository,
     private val amazonRepository: AmazonRepository,
     private val sessionManager: SessionManager,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val syncStatusRepository: SyncStatusRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -48,11 +51,20 @@ class SettingsViewModel(
 
     init {
         observeConfig()
+        observeSyncStatus()
         _uiState.update {
             it.copy(
                 accountEmail = sessionManager.email,
                 accountDisplayName = sessionManager.displayName
             )
+        }
+    }
+
+    private fun observeSyncStatus() {
+        viewModelScope.launch {
+            syncStatusRepository.flow.collect { status ->
+                _uiState.update { it.copy(lastSync = status) }
+            }
         }
     }
 
@@ -157,6 +169,7 @@ class SettingsViewModel(
             when (val result = simpleFinRepository.triggerSync(days)) {
                 is Resource.Success -> {
                     val errors = result.data.orEmpty()
+                    syncStatusRepository.recordSuccess()
                     _uiState.update {
                         it.copy(
                             isSyncing = false,
@@ -170,6 +183,7 @@ class SettingsViewModel(
                     }
                 }
                 is Resource.Error -> {
+                    syncStatusRepository.recordFailure(result.message)
                     _uiState.update {
                         it.copy(
                             isSyncing = false,
