@@ -13,6 +13,14 @@ object DateUtils {
     private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM dd")
     private val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy hh:mm a")
 
+    // Clamp synced timestamps to a renderable range (1900–2100) so a bad/unexpected
+    // epoch value from a bank feed can never throw DateTimeException and crash a screen.
+    private const val MIN_EPOCH_SECONDS = -2208988800L   // 1900-01-01
+    private const val MAX_EPOCH_SECONDS = 4102444800L    // 2100-01-01
+
+    private fun safeInstant(epochSeconds: Long): Instant =
+        Instant.ofEpochSecond(epochSeconds.coerceIn(MIN_EPOCH_SECONDS, MAX_EPOCH_SECONDS))
+
     fun getDaysRemainingInCurrentMonth(zoneId: ZoneId = ZoneId.systemDefault()): Int {
         val today = LocalDate.now(zoneId)
         val yearMonth = YearMonth.from(today)
@@ -43,8 +51,8 @@ object DateUtils {
     }
 
     fun getDaysBetween(startEpochSeconds: Long, endEpochSeconds: Long): Long {
-        val start = Instant.ofEpochSecond(startEpochSeconds).atZone(ZoneId.systemDefault()).toLocalDate()
-        val end = Instant.ofEpochSecond(endEpochSeconds).atZone(ZoneId.systemDefault()).toLocalDate()
+        val start = safeInstant(startEpochSeconds).atZone(ZoneId.systemDefault()).toLocalDate()
+        val end = safeInstant(endEpochSeconds).atZone(ZoneId.systemDefault()).toLocalDate()
         return ChronoUnit.DAYS.between(start, end).coerceAtLeast(1)
     }
 
@@ -54,19 +62,19 @@ object DateUtils {
     }
 
     fun formatDate(epochSeconds: Long): String {
-        return Instant.ofEpochSecond(epochSeconds)
+        return safeInstant(epochSeconds)
             .atZone(ZoneId.systemDefault())
             .format(dateFormatter)
     }
 
     fun formatShortDate(epochSeconds: Long): String {
-        return Instant.ofEpochSecond(epochSeconds)
+        return safeInstant(epochSeconds)
             .atZone(ZoneId.systemDefault())
             .format(shortDateFormatter)
     }
 
     fun formatDateTime(epochSeconds: Long): String {
-        return Instant.ofEpochSecond(epochSeconds)
+        return safeInstant(epochSeconds)
             .atZone(ZoneId.systemDefault())
             .format(dateTimeFormatter)
     }

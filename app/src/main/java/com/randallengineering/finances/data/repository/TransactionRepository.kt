@@ -21,6 +21,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.util.UUID
 
 class TransactionRepository(
     private val context: Context,
@@ -44,7 +45,7 @@ class TransactionRepository(
             val raw = prefs.getString("cached_txs", null)
             if (!raw.isNullOrBlank()) {
                 val list = json.decodeFromString<List<Transaction>>(raw)
-                _transactionsFlow.value = list.sortedByDescending { it.postedEpochSeconds }
+                _transactionsFlow.value = sanitize(list)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -53,12 +54,28 @@ class TransactionRepository(
 
     private suspend fun saveLocalTransactions(list: List<Transaction>) = withContext(Dispatchers.IO) {
         try {
-            val sorted = list.sortedByDescending { it.postedEpochSeconds }
+            // Guarantee every transaction has a unique, non-blank id and a finite
+            // amount so no screen's LazyColumn(key = { it.id }) can ever throw on a
+            // duplicate key, and CurrencyFormatter can't choke on NaN/Infinity.
+            val sorted = sanitize(list)
             _transactionsFlow.value = sorted
             prefs.edit().putString("cached_txs", json.encodeToString(sorted)).apply()
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun sanitize(list: List<Transaction>): List<Transaction> {
+        val seen = mutableSetOf<String>()
+        return list.mapNotNull { tx ->
+            val id = tx.id.ifBlank { UUID.randomUUID().toString() }
+            if (seen.add(id)) {
+                tx.copy(
+                    id = id,
+                    amount = if (tx.amount.isFinite()) tx.amount else 0.0
+                )
+            } else null
+        }.sortedByDescending { it.postedEpochSeconds }
     }
 
     private fun attachFirestoreListenerIfAvailable() {
@@ -68,11 +85,15 @@ class TransactionRepository(
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
-                            val firestoreList = snapshot.documents.mapNotNull { doc ->
-                                doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                            }
-                            if (firestoreList.isNotEmpty()) {
-                                saveLocalTransactions(firestoreList)
+                            try {
+                                val firestoreList = snapshot.documents.mapNotNull { doc ->
+                                    doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                                }
+                                if (firestoreList.isNotEmpty()) {
+                                    saveLocalTransactions(firestoreList)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
                         }
                     }

@@ -73,11 +73,15 @@ class RuleRepository(
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
-                            val list = snapshot.documents.mapNotNull { doc ->
-                                doc.toObject(RuleEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                            }
-                            if (list.isNotEmpty()) {
-                                saveLocalRules(list)
+                            try {
+                                val list = snapshot.documents.mapNotNull { doc ->
+                                    doc.toObject(RuleEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                                }
+                                if (list.isNotEmpty()) {
+                                    saveLocalRules(list)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
                         }
                     }

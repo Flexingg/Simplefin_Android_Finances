@@ -63,11 +63,15 @@ class BudgetRepository(
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
-                            val list = snapshot.documents.mapNotNull { doc ->
-                                doc.toObject(BudgetEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                            }
-                            if (list.isNotEmpty()) {
-                                saveLocalBudgets(list)
+                            try {
+                                val list = snapshot.documents.mapNotNull { doc ->
+                                    doc.toObject(BudgetEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                                }
+                                if (list.isNotEmpty()) {
+                                    saveLocalBudgets(list)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
                         }
                     }

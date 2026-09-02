@@ -56,11 +56,15 @@ class GoalRepository(
                 ?.orderBy("targetEpochSeconds", Query.Direction.ASCENDING)
                 ?.addSnapshotListener { snapshot, error ->
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
-                        val list = snapshot.documents.mapNotNull { doc ->
-                            doc.toObject(GoalEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                        }
-                        if (list.isNotEmpty()) {
-                            saveLocalGoals(list)
+                        try {
+                            val list = snapshot.documents.mapNotNull { doc ->
+                                doc.toObject(GoalEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                            }
+                            if (list.isNotEmpty()) {
+                                saveLocalGoals(list)
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
                     }
                 }
