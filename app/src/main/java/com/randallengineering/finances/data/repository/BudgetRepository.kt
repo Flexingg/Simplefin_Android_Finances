@@ -4,6 +4,8 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.data.local.DomainRecordRow
+import com.randallengineering.finances.data.local.GenericRecordDao
 import com.randallengineering.finances.data.model.BudgetEntity
 import com.randallengineering.finances.domain.model.Budget
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +24,7 @@ import java.util.UUID
 
 class BudgetRepository(
     private val context: Context,
+    private val dao: GenericRecordDao,
     private val firestore: FirebaseFirestore? = null
 ) {
     private val prefs = context.getSharedPreferences("randall_finances_budgets", Context.MODE_PRIVATE)
@@ -38,11 +41,15 @@ class BudgetRepository(
 
     private suspend fun loadLocalBudgets() = withContext(Dispatchers.IO) {
         try {
-            val raw = prefs.getString("cached_budgets", null)
-            if (!raw.isNullOrBlank()) {
-                val list = json.decodeFromString<List<Budget>>(raw)
-                _budgetsFlow.value = list
+            if (dao.count(DomainRecordRow.KIND_BUDGET) == 0) {
+                val raw = prefs.getString("cached_budgets", null)
+                if (!raw.isNullOrBlank()) {
+                    val legacy = json.decodeFromString<List<Budget>>(raw)
+                    if (legacy.isNotEmpty()) { saveLocalBudgets(legacy); return@withContext }
+                }
             }
+            val rows = dao.getAll(DomainRecordRow.KIND_BUDGET)
+            _budgetsFlow.value = rows.mapNotNull { r -> runCatching { json.decodeFromString<Budget>(r.json) }.getOrNull() }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -51,7 +58,10 @@ class BudgetRepository(
     private suspend fun saveLocalBudgets(list: List<Budget>) = withContext(Dispatchers.IO) {
         try {
             _budgetsFlow.value = list
-            prefs.edit().putString("cached_budgets", json.encodeToString(list)).apply()
+            dao.clear(DomainRecordRow.KIND_BUDGET)
+            dao.upsertAll(
+                list.map { DomainRecordRow(DomainRecordRow.KIND_BUDGET, it.id, json.encodeToString(it)) }
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }

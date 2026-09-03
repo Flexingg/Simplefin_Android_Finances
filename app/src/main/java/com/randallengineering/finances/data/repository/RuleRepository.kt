@@ -4,6 +4,8 @@ import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.data.local.DomainRecordRow
+import com.randallengineering.finances.data.local.GenericRecordDao
 import com.randallengineering.finances.data.model.RuleEntity
 import com.randallengineering.finances.domain.model.Rule
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +24,7 @@ import java.util.UUID
 
 class RuleRepository(
     private val context: Context,
+    private val dao: GenericRecordDao,
     private val firestore: FirebaseFirestore? = null
 ) {
     private val prefs = context.getSharedPreferences("randall_finances_rules", Context.MODE_PRIVATE)
@@ -47,11 +50,20 @@ class RuleRepository(
 
     private suspend fun loadLocalRules() = withContext(Dispatchers.IO) {
         try {
-            val raw = prefs.getString("cached_rules", null)
-            if (!raw.isNullOrBlank()) {
-                val list = json.decodeFromString<List<Rule>>(raw)
-                _rulesFlow.value = list.sortedBy { it.priority }
+            // One-time migration from the legacy SharedPreferences blob into Room.
+            if (dao.count(DomainRecordRow.KIND_RULE) == 0) {
+                val raw = prefs.getString("cached_rules", null)
+                if (!raw.isNullOrBlank()) {
+                    val legacy = json.decodeFromString<List<Rule>>(raw)
+                    if (legacy.isNotEmpty()) {
+                        saveLocalRules(legacy)
+                        return@withContext
+                    }
+                }
             }
+            val rows = dao.getAll(DomainRecordRow.KIND_RULE)
+            val list = rows.mapNotNull { r -> runCatching { json.decodeFromString<Rule>(r.json) }.getOrNull() }
+            _rulesFlow.value = list.sortedBy { it.priority }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -61,7 +73,10 @@ class RuleRepository(
         try {
             val sorted = list.sortedBy { it.priority }
             _rulesFlow.value = sorted
-            prefs.edit().putString("cached_rules", json.encodeToString(sorted)).apply()
+            dao.clear(DomainRecordRow.KIND_RULE)
+            dao.upsertAll(
+                sorted.map { DomainRecordRow(DomainRecordRow.KIND_RULE, it.id, json.encodeToString(it)) }
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }

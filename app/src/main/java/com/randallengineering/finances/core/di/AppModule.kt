@@ -57,16 +57,21 @@ val appModule = module {
     single { com.randallengineering.finances.core.prefs.DashboardLayoutRepository(androidContext()) }
 
     // Local Room database
-    single { androidx.room.Room.databaseBuilder(androidContext(), FinanceDatabase::class.java, "randall_finances.db").build() }
+    single {
+        androidx.room.Room.databaseBuilder(androidContext(), FinanceDatabase::class.java, "randall_finances.db")
+            .addMigrations(FinanceDatabase.MIGRATION_1_2)
+            .build()
+    }
     single { get<FinanceDatabase>().transactionDao() }
+    single { get<FinanceDatabase>().genericRecordDao() }
 
     // Repositories (with local storage & offline fallback)
     single { TransactionRepository(androidContext(), get(), getOrNull()) }
-    single { RuleRepository(androidContext(), getOrNull()) }
-    single { BudgetRepository(androidContext(), getOrNull()) }
-    single { GoalRepository(androidContext(), getOrNull()) }
+    single { RuleRepository(androidContext(), get(), getOrNull()) }
+    single { BudgetRepository(androidContext(), get(), getOrNull()) }
+    single { GoalRepository(androidContext(), get(), getOrNull()) }
     single { StorageRepository(get()) }
-    single { CategoryRepository(androidContext(), getOrNull()) }
+    single { CategoryRepository(androidContext(), get(), getOrNull()) }
     single { AccountRepository(androidContext()) }
     single { SyncStatusRepository(androidContext()) }
     single { NetWorthRepository(androidContext()) }

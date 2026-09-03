@@ -3,6 +3,8 @@ package com.randallengineering.finances.data.repository
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.randallengineering.finances.core.network.Resource
+import com.randallengineering.finances.data.local.DomainRecordRow
+import com.randallengineering.finances.data.local.GenericRecordDao
 import com.randallengineering.finances.domain.model.CategoryHierarchy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,7 @@ import kotlinx.serialization.json.Json
 
 class CategoryRepository(
     private val context: Context,
+    private val dao: GenericRecordDao,
     private val firestore: FirebaseFirestore? = null
 ) {
     private val prefs = context.getSharedPreferences("randall_categories", Context.MODE_PRIVATE)
@@ -47,13 +50,15 @@ class CategoryRepository(
 
     private suspend fun loadCategories() = withContext(Dispatchers.IO) {
         try {
-            val raw = prefs.getString("custom_categories", null)
-            if (!raw.isNullOrBlank()) {
-                val list = json.decodeFromString<List<CategoryHierarchy>>(raw)
-                _categoriesFlow.value = list
-            } else {
-                _categoriesFlow.value = emptyList()
+            if (dao.count(DomainRecordRow.KIND_CATEGORY) == 0) {
+                val raw = prefs.getString("custom_categories", null)
+                if (!raw.isNullOrBlank()) {
+                    val legacy = json.decodeFromString<List<CategoryHierarchy>>(raw)
+                    if (legacy.isNotEmpty()) { saveCategories(legacy); return@withContext }
+                }
             }
+            val rows = dao.getAll(DomainRecordRow.KIND_CATEGORY)
+            _categoriesFlow.value = rows.mapNotNull { r -> runCatching { json.decodeFromString<CategoryHierarchy>(r.json) }.getOrNull() }
         } catch (e: Exception) {
             _categoriesFlow.value = emptyList()
         }
@@ -62,7 +67,10 @@ class CategoryRepository(
     private suspend fun saveCategories(list: List<CategoryHierarchy>) = withContext(Dispatchers.IO) {
         _categoriesFlow.value = list
         try {
-            prefs.edit().putString("custom_categories", json.encodeToString(list)).apply()
+            dao.clear(DomainRecordRow.KIND_CATEGORY)
+            dao.upsertAll(
+                list.map { DomainRecordRow(DomainRecordRow.KIND_CATEGORY, it.mainCategory, json.encodeToString(it)) }
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }
