@@ -6,15 +6,19 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.graphics.Color
+import com.randallengineering.finances.core.theme.FinanceGreen
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -146,6 +150,20 @@ fun FinanceNavHost(
                             }
                         )
                     }
+                }
+            }
+        },
+        floatingActionButton = {
+            if (shouldShowBottomBar) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.AiAdvisor.route) },
+                    containerColor = FinanceGreen,
+                    contentColor = Color.White
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = "AI Chat Advisor"
+                    )
                 }
             }
         }

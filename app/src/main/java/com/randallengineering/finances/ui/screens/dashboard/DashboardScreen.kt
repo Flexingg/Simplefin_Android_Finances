@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -119,6 +121,7 @@ fun DashboardScreen(
                 onNavigateToBudgets = onNavigateToBudgets,
                 onNavigateToInsights = onNavigateToInsights,
                 onNavigateToQueue = onNavigateToQueue,
+                onNavigateToAi = onNavigateToAi,
                 onNavigateToSettings = onNavigateToSettings
             )
         }
@@ -140,6 +143,7 @@ private fun DashboardCard(
     onNavigateToBudgets: () -> Unit,
     onNavigateToInsights: () -> Unit,
     onNavigateToQueue: () -> Unit,
+    onNavigateToAi: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -158,7 +162,7 @@ private fun DashboardCard(
         DashboardCardType.TOP_CATEGORIES -> TopCategoriesCard(state.topCategories)
         DashboardCardType.RECENT_TRANSACTIONS -> RecentTransactionsCard(state.recentTransactions, onNavigateToTransactions)
         DashboardCardType.NEEDS_REVIEW -> NeedsReviewCard(state.uncategorizedCount, onNavigateToQueue)
-        DashboardCardType.QUICK_ACTIONS -> QuickActionsCard(onNavigateToQueue, onNavigateToBudgets, onNavigateToInsights)
+        DashboardCardType.QUICK_ACTIONS -> QuickActionsCard(onNavigateToQueue, onNavigateToBudgets, onNavigateToInsights, onNavigateToAi)
         DashboardCardType.ACCOUNTS -> AccountsCard(state.accounts, state.accountTxCounts)
         DashboardCardType.DISCRETIONARY -> DiscretionaryCard(state.discretionary)
     }
@@ -413,14 +417,27 @@ private fun NeedsReviewCard(count: Int, onNavigateToQueue: () -> Unit) {
 }
 
 @Composable
-private fun QuickActionsCard(onQueue: () -> Unit, onBudgets: () -> Unit, onInsights: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        QuickAction("Review", Icons.Default.ReceiptLong, onQueue, Modifier.weight(1f))
-        QuickAction("Budgets", Icons.Default.Sync, onBudgets, Modifier.weight(1f))
-        QuickAction("Insights", Icons.Default.AutoAwesome, onInsights, Modifier.weight(1f))
+private fun QuickActionsCard(
+    onQueue: () -> Unit,
+    onBudgets: () -> Unit,
+    onInsights: () -> Unit,
+    onAi: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickAction("AI Advisor", Icons.Default.AutoAwesome, onAi, Modifier.weight(1f))
+            QuickAction("Retirement", Icons.Default.Savings, onInsights, Modifier.weight(1f))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            QuickAction("Review", Icons.AutoMirrored.Filled.ReceiptLong, onQueue, Modifier.weight(1f))
+            QuickAction("Budgets", Icons.Default.Sync, onBudgets, Modifier.weight(1f))
+        }
     }
 }
 

@@ -182,6 +182,108 @@ fun SettingsScreen(
             }
 
             // -------------------------------------------------------------
+            // Gemini AI Advisor Configuration Section
+            // -------------------------------------------------------------
+            var isApiKeyMasked by remember { mutableStateOf(true) }
+
+            ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "Gemini AI",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Gemini AI Advisor (MCP)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Power the in-app chat advisor with custom API keys or built-in Google / Firebase Vertex AI.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = uiState.aiProviderMode == AiProviderMode.CUSTOM_KEY,
+                            onClick = { viewModel.onAiProviderModeChange(AiProviderMode.CUSTOM_KEY) },
+                            label = { Text("Gemini API Key") }
+                        )
+                        FilterChip(
+                            selected = uiState.aiProviderMode == AiProviderMode.BUILTIN_VERTEX,
+                            onClick = { viewModel.onAiProviderModeChange(AiProviderMode.BUILTIN_VERTEX) },
+                            label = { Text("Built-in Vertex AI") }
+                        )
+                    }
+
+                    if (uiState.aiProviderMode == AiProviderMode.CUSTOM_KEY) {
+                        OutlinedTextField(
+                            value = uiState.geminiApiKeyInput,
+                            onValueChange = { viewModel.onGeminiApiKeyChange(it) },
+                            label = { Text("Gemini API Key") },
+                            placeholder = { Text("AIzaSy...") },
+                            visualTransformation = if (isApiKeyMasked) PasswordVisualTransformation() else VisualTransformation.None,
+                            trailingIcon = {
+                                IconButton(onClick = { isApiKeyMasked = !isApiKeyMasked }) {
+                                    Icon(
+                                        if (isApiKeyMasked) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Text(
+                            text = "Uses project Firebase Vertex AI credentials automatically.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { viewModel.saveGeminiConfig() },
+                            modifier = Modifier.weight(1f),
+                            shape = Shapes.small
+                        ) {
+                            Text("Save AI Settings")
+                        }
+
+                        OutlinedButton(
+                            onClick = { viewModel.testGeminiConnection() },
+                            enabled = !uiState.isTestingGemini,
+                            modifier = Modifier.weight(1f),
+                            shape = Shapes.small
+                        ) {
+                            if (uiState.isTestingGemini) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Testing...")
+                            } else {
+                                Text("Test Connection")
+                            }
+                        }
+                    }
+                }
+            }
+
+            // -------------------------------------------------------------
             // Backup & Export Section
             // -------------------------------------------------------------
             BackupExportSection(
@@ -426,108 +528,6 @@ fun SettingsScreen(
                 onSetpoint = { v -> viewModel.setDiscretionarySetpoint(v) },
                 onToggleCategory = { cat, necessary -> viewModel.setCategoryNecessary(cat, necessary) }
             )
-
-            // -------------------------------------------------------------
-            // Gemini AI Advisor Configuration Section
-            // -------------------------------------------------------------
-            var isApiKeyMasked by remember { mutableStateOf(true) }
-
-            ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = "Gemini AI",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = "Gemini AI Advisor (MCP)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Power the in-app chat advisor with custom API keys or built-in Google / Firebase Vertex AI.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = uiState.aiProviderMode == AiProviderMode.CUSTOM_KEY,
-                            onClick = { viewModel.onAiProviderModeChange(AiProviderMode.CUSTOM_KEY) },
-                            label = { Text("Gemini API Key") }
-                        )
-                        FilterChip(
-                            selected = uiState.aiProviderMode == AiProviderMode.BUILTIN_VERTEX,
-                            onClick = { viewModel.onAiProviderModeChange(AiProviderMode.BUILTIN_VERTEX) },
-                            label = { Text("Built-in Vertex AI") }
-                        )
-                    }
-
-                    if (uiState.aiProviderMode == AiProviderMode.CUSTOM_KEY) {
-                        OutlinedTextField(
-                            value = uiState.geminiApiKeyInput,
-                            onValueChange = { viewModel.onGeminiApiKeyChange(it) },
-                            label = { Text("Gemini API Key") },
-                            placeholder = { Text("AIzaSy...") },
-                            visualTransformation = if (isApiKeyMasked) PasswordVisualTransformation() else VisualTransformation.None,
-                            trailingIcon = {
-                                IconButton(onClick = { isApiKeyMasked = !isApiKeyMasked }) {
-                                    Icon(
-                                        if (isApiKeyMasked) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            text = "Uses project Firebase Vertex AI credentials automatically.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { viewModel.saveGeminiConfig() },
-                            modifier = Modifier.weight(1f),
-                            shape = Shapes.small
-                        ) {
-                            Text("Save AI Settings")
-                        }
-
-                        OutlinedButton(
-                            onClick = { viewModel.testGeminiConnection() },
-                            enabled = !uiState.isTestingGemini,
-                            modifier = Modifier.weight(1f),
-                            shape = Shapes.small
-                        ) {
-                            if (uiState.isTestingGemini) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Testing...")
-                            } else {
-                                Text("Test Connection")
-                            }
-                        }
-                    }
-                }
-            }
 
             // -------------------------------------------------------------
             // Amazon Order History Launcher Section
