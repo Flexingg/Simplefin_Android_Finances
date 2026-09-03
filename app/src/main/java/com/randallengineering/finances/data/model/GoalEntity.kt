@@ -1,12 +1,10 @@
 package com.randallengineering.finances.data.model
 
-import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.randallengineering.finances.domain.model.Goal
 
 @IgnoreExtraProperties
 data class GoalEntity(
-    @DocumentId
     var id: String = "",
     var title: String = "",
     var targetAmount: Double = 0.0,

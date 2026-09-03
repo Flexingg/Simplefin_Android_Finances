@@ -1,13 +1,11 @@
 package com.randallengineering.finances.data.model
 
-import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.randallengineering.finances.domain.model.Budget
 import com.randallengineering.finances.domain.model.BudgetCategoryType
 
 @IgnoreExtraProperties
 data class BudgetEntity(
-    @DocumentId
     var id: String = "",
     var category: String = "",
     var subCategory: String = "",

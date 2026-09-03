@@ -217,7 +217,11 @@ class UserDataSyncManager(
         val localCount = genericRecordDao.count(DomainRecordRow.KIND_BUDGET)
         if (cloudDocs != null && !cloudDocs.isEmpty) {
             val list = cloudDocs.documents.mapNotNull { doc ->
-                doc.toObject(BudgetEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                runCatching {
+                    (doc.toObject(BudgetEntity::class.java) ?: BudgetEntity()).apply {
+                        if (id.isBlank()) id = doc.id
+                    }.toDomain()
+                }.getOrNull()
             }
             if (list.isNotEmpty()) {
                 budgetRepository.replaceLocalBudgets(list)
@@ -242,7 +246,11 @@ class UserDataSyncManager(
         val localCount = genericRecordDao.count(DomainRecordRow.KIND_RULE)
         if (cloudDocs != null && !cloudDocs.isEmpty) {
             val list = cloudDocs.documents.mapNotNull { doc ->
-                doc.toObject(RuleEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                runCatching {
+                    (doc.toObject(RuleEntity::class.java) ?: RuleEntity()).apply {
+                        if (id.isBlank()) id = doc.id
+                    }.toDomain()
+                }.getOrNull()
             }
             if (list.isNotEmpty()) {
                 ruleRepository.replaceLocalRules(list)
@@ -267,7 +275,11 @@ class UserDataSyncManager(
         val localCount = genericRecordDao.count(DomainRecordRow.KIND_GOAL)
         if (cloudDocs != null && !cloudDocs.isEmpty) {
             val list = cloudDocs.documents.mapNotNull { doc ->
-                doc.toObject(GoalEntity::class.java)?.copy(id = doc.id)?.toDomain()
+                runCatching {
+                    (doc.toObject(GoalEntity::class.java) ?: GoalEntity()).apply {
+                        if (id.isBlank()) id = doc.id
+                    }.toDomain()
+                }.getOrNull()
             }
             if (list.isNotEmpty()) {
                 goalRepository.replaceLocalGoals(list)
@@ -294,9 +306,12 @@ class UserDataSyncManager(
         if (cloudDocs != null && !cloudDocs.isEmpty) {
             val newRows = mutableListOf<TransactionRow>()
             cloudDocs.documents.forEach { doc ->
-                val entity = doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)
-                if (entity != null) {
-                    val domain = entity.toDomain()
+                val domain = runCatching {
+                    (doc.toObject(TransactionEntity::class.java) ?: TransactionEntity()).apply {
+                        if (id.isBlank()) id = doc.id
+                    }.toDomain()
+                }.getOrNull()
+                if (domain != null) {
                     newRows.add(
                         TransactionRow(
                             id = domain.id,

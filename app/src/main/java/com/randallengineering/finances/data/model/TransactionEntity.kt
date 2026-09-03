@@ -1,6 +1,5 @@
 package com.randallengineering.finances.data.model
 
-import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.randallengineering.finances.domain.model.Transaction
 import com.randallengineering.finances.domain.model.TransactionSplit
@@ -34,7 +33,6 @@ data class TransactionSplitEntity(
 
 @IgnoreExtraProperties
 data class TransactionEntity(
-    @DocumentId
     var id: String = "",
     var accountId: String = "",
     var postedEpochSeconds: Long = 0L,
