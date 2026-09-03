@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.ui.screens.ai
+package com.randallengineering.finances.ui.screens.ai
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -215,7 +215,7 @@ fun AiAdvisorScreen(
 
             // Quick Prompt Suggestion Pills
             val suggestedActions = uiState.messages.lastOrNull()?.suggestedActions
-                ?: listOf("ðŸ–ï¸ Simulate retirement at age 62", "ðŸ’µ Daily safe allowance", "ðŸ·ï¸ Review 10 transactions", "ðŸ’³ Snowball vs Avalanche")
+                ?: listOf("Simulate retirement at age 62", "Daily safe allowance", "Review 10 transactions", "Snowball vs Avalanche")
 
             Row(
                 modifier = Modifier

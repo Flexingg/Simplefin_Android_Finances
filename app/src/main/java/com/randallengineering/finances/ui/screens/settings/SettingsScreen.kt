@@ -56,6 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -134,6 +135,8 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
+            val cloudSyncState by viewModel.cloudSyncState.collectAsState()
+
             // -------------------------------------------------------------
             // Account Section
             // -------------------------------------------------------------
@@ -153,13 +156,13 @@ fun SettingsScreen(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "Account",
+                                text = "Google Account",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Text(
-                            text = uiState.accountDisplayName ?: "Synced account",
+                            text = uiState.accountDisplayName ?: "Google Account",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -170,6 +173,53 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        // Cloud Sync Status & Action
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Cloud Backup & Sync",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                val syncTimeText = if (cloudSyncState.isSyncing) "Syncing data with Google account..."
+                                else if (cloudSyncState.lastSyncEpochSeconds > 0L) {
+                                    val diffMin = (System.currentTimeMillis() / 1000 - cloudSyncState.lastSyncEpochSeconds) / 60
+                                    if (diffMin < 1) "Synced just now"
+                                    else if (diffMin < 60) "$diffMin min ago"
+                                    else "${diffMin / 60} hr ago"
+                                } else "Tap Sync Now to back up"
+                                Text(
+                                    text = syncTimeText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Button(
+                                onClick = { viewModel.triggerCloudSync() },
+                                enabled = !cloudSyncState.isSyncing
+                            ) {
+                                if (cloudSyncState.isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Sync Now")
+                                }
+                            }
+                        }
+
                         Spacer(Modifier.height(4.dp))
                         OutlinedButton(
                             onClick = { viewModel.signOut() },
@@ -177,6 +227,34 @@ fun SettingsScreen(
                         ) {
                             Text("Sign Out", fontWeight = FontWeight.SemiBold)
                         }
+                    }
+                }
+            } else {
+                ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Sync,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Google Account Backup & Sync",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "Sign in to automatically sync your SimpleFIN connection, transactions, custom categories, budgets, rules, and AI preferences across devices.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

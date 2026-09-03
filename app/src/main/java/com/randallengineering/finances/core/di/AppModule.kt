@@ -81,6 +81,7 @@ val appModule = module {
     single { SimpleFinRepository(androidContext(), get(), get(), get(), getOrNull(), getOrNull()) }
     single { AmazonRepository(androidContext()) }
     single { com.randallengineering.finances.data.repository.AiConfigRepository(androidContext()) }
+    single { com.randallengineering.finances.core.sync.UserDataSyncManager(androidContext(), getOrNull(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Tools Suite
     single { FinancialMcpTools(get(), get(), get(), get(), get(), get(), get(), get(), getOrNull(), getOrNull()) }
@@ -97,7 +98,7 @@ val appModule = module {
     single { AiChatbotUseCase(get(), get(), get()) }
 
     // ViewModels
-    viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get()) }
+    viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get(), get()) }
     viewModel { SimpleFinOnboardingViewModel(get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.dashboard.DashboardViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
@@ -107,6 +108,6 @@ val appModule = module {
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
 }

@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 class MainActivity : FragmentActivity() {
 
     private val sessionManager: SessionManager by inject()
+    private val userDataSyncManager: com.randallengineering.finances.core.sync.UserDataSyncManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +67,13 @@ class MainActivity : FragmentActivity() {
                 val signedIn by sessionManager.isSignedIn.collectAsState()
                 var skippedSync by remember { mutableStateOf(false) }
                 val authViewModel: AuthViewModel = koinViewModel()
+
+                LaunchedEffect(signedIn) {
+                    if (signedIn) {
+                        userDataSyncManager.syncAll(sessionManager.uid)
+                    }
+                }
+
                 val deepLinkRoute = remember {
                     deepLinkRouteFor(intent.getStringExtra("deep_link_target"))
                 }

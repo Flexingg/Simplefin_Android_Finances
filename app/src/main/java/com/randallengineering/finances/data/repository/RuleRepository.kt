@@ -69,6 +69,10 @@ class RuleRepository(
         }
     }
 
+    suspend fun reloadRules() = loadLocalRules()
+
+    suspend fun replaceLocalRules(list: List<Rule>) = saveLocalRules(list)
+
     private suspend fun saveLocalRules(list: List<Rule>) = withContext(Dispatchers.IO) {
         try {
             val sorted = list.sortedBy { it.priority }

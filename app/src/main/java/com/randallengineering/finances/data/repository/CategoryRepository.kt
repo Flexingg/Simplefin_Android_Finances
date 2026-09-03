@@ -64,6 +64,10 @@ class CategoryRepository(
         }
     }
 
+    suspend fun reloadCategories() = loadCategories()
+
+    suspend fun replaceLocalCategories(list: List<CategoryHierarchy>) = saveCategories(list)
+
     private suspend fun saveCategories(list: List<CategoryHierarchy>) = withContext(Dispatchers.IO) {
         _categoriesFlow.value = list
         try {

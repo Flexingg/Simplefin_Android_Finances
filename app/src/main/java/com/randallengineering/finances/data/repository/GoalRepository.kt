@@ -55,6 +55,10 @@ class GoalRepository(
         }
     }
 
+    suspend fun reloadGoals() = loadLocalGoals()
+
+    suspend fun replaceLocalGoals(list: List<Goal>) = saveLocalGoals(list)
+
     private suspend fun saveLocalGoals(list: List<Goal>) = withContext(Dispatchers.IO) {
         try {
             val sorted = list.sortedBy { it.targetEpochSeconds }

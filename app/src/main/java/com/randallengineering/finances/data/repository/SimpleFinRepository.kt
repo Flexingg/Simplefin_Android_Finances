@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.network.SimpleFinAccountsResponse
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
@@ -42,7 +43,7 @@ class SimpleFinRepository(
         loadConfig()
     }
 
-    private fun loadConfig() {
+    fun loadConfig() {
         val accessUrl = prefs.getString("access_url", null)
         val lastSync = prefs.getLong("last_sync", 0L)
         val errorString = prefs.getString("error_list", null)
@@ -55,6 +56,26 @@ class SimpleFinRepository(
             errorList = errList
         )
         _configFlow.value = entity
+    }
+
+    fun getAccessUrl(): String? = prefs.getString("access_url", null)
+
+    fun setAccessUrl(url: String, claimedAt: Long = System.currentTimeMillis()) {
+        prefs.edit()
+            .putString("access_url", url)
+            .putLong("claimed_at", claimedAt)
+            .apply()
+        loadConfig()
+        SyncScope.uid?.let { uid ->
+            firestore?.collection("users")?.document(uid)?.collection("config")?.document("settings")
+                ?.set(
+                    mapOf(
+                        "simplefin_access_url" to url,
+                        "simplefin_claimed_at" to claimedAt
+                    ),
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+        }
     }
 
     fun getConfigFlow(userId: String = "default_user"): Flow<Resource<SimpleFinConfigEntity?>> {
@@ -111,6 +132,17 @@ class SimpleFinRepository(
                 .apply()
 
             loadConfig()
+
+            SyncScope.uid?.let { uid ->
+                firestore?.collection("users")?.document(uid)?.collection("config")?.document("settings")
+                    ?.set(
+                        mapOf(
+                            "simplefin_access_url" to accessUrl,
+                            "simplefin_claimed_at" to System.currentTimeMillis()
+                        ),
+                        com.google.firebase.firestore.SetOptions.merge()
+                    )
+            }
 
             Resource.Success("SimpleFIN Bridge successfully connected!")
         } catch (e: Exception) {

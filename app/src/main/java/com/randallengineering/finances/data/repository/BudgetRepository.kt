@@ -55,6 +55,10 @@ class BudgetRepository(
         }
     }
 
+    suspend fun reloadBudgets() = loadLocalBudgets()
+
+    suspend fun replaceLocalBudgets(list: List<Budget>) = saveLocalBudgets(list)
+
     private suspend fun saveLocalBudgets(list: List<Budget>) = withContext(Dispatchers.IO) {
         try {
             _budgetsFlow.value = list

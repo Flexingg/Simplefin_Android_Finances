@@ -17,7 +17,10 @@ data class AuthUiState(
     val successMessage: String? = null
 )
 
-class AuthViewModel(private val session: SessionManager) : ViewModel() {
+class AuthViewModel(
+    private val session: SessionManager,
+    private val syncManager: com.randallengineering.finances.core.sync.UserDataSyncManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -35,6 +38,7 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, successMessage = null)
             when (val r = session.createAccount(email, password, displayName)) {
                 is Resource.Success -> {
+                    syncManager.syncAll(session.uid)
                     _uiState.value = _uiState.value.copy(isLoading = false, successMessage = "Account created. Welcome!")
                 }
                 is Resource.Error -> {
@@ -51,6 +55,7 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, successMessage = null)
             when (val r = session.login(email, password)) {
                 is Resource.Success -> {
+                    syncManager.syncAll(session.uid)
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
                 is Resource.Error -> {
@@ -65,7 +70,10 @@ class AuthViewModel(private val session: SessionManager) : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             when (val r = session.handleSignInResult(task)) {
-                is Resource.Success -> _uiState.value = _uiState.value.copy(isLoading = false)
+                is Resource.Success -> {
+                    syncManager.syncAll(session.uid)
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
                 is Resource.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = r.message)
                 else -> _uiState.value = _uiState.value.copy(isLoading = false)
             }

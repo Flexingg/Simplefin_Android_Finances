@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.ui.screens.insights
+package com.randallengineering.finances.ui.screens.insights
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
@@ -134,22 +135,26 @@ fun InsightsScreen(
                 Tab(
                     selected = uiState.selectedInsightsTab == 0,
                     onClick = { viewModel.selectInsightsTab(0) },
-                    text = { Text("ðŸ“Š Spending Trends", fontWeight = FontWeight.Bold) }
+                    text = { Text("Trends", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null) }
                 )
                 Tab(
                     selected = uiState.selectedInsightsTab == 1,
                     onClick = { viewModel.selectInsightsTab(1) },
-                    text = { Text("ðŸ—“ï¸ Heatmap", fontWeight = FontWeight.Bold) }
+                    text = { Text("Heatmap", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) }
                 )
                 Tab(
                     selected = uiState.selectedInsightsTab == 2,
                     onClick = { viewModel.selectInsightsTab(2) },
-                    text = { Text("ðŸ’° Net Worth & Debt", fontWeight = FontWeight.Bold) }
+                    text = { Text("Net Worth", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.AccountBalance, contentDescription = null) }
                 )
                 Tab(
                     selected = uiState.selectedInsightsTab == 3,
                     onClick = { viewModel.selectInsightsTab(3) },
-                    text = { Text("ðŸ–ï¸ Retirement & FIRE", fontWeight = FontWeight.Bold) }
+                    text = { Text("Retirement & FIRE", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.Savings, contentDescription = null) }
                 )
             }
 
@@ -376,7 +381,7 @@ private fun HeatmapTabContent(uiState: InsightsUiState) {
                                             color = Color.White.copy(alpha = 0.9f)
                                         )
                                     } else {
-                                        Text("ðŸ›¡ï¸", style = MaterialTheme.typography.labelSmall)
+                                        Text("\$0", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
                                     }
                                 }
                             }
@@ -751,7 +756,7 @@ private fun RetirementTabContent(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (isAhead) "ðŸŽ‰ On Track for Financial Freedom!" else "âš ï¸ Retirement Shortfall Detected",
+                            text = if (isAhead) "On Track for Financial Freedom!" else "Retirement Shortfall Detected",
                             fontWeight = FontWeight.Black,
                             style = MaterialTheme.typography.titleSmall,
                             color = statusColor

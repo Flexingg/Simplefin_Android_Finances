@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.ui.screens.settings
+package com.randallengineering.finances.ui.screens.settings
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -64,11 +64,23 @@ class SettingsViewModel(
     private val notificationPrefsRepository: NotificationPrefsRepository,
     private val discretionaryRepository: DiscretionaryRepository,
     private val aiConfigRepository: AiConfigRepository,
-    private val geminiApiClient: GeminiApiClient
+    private val geminiApiClient: GeminiApiClient,
+    private val userDataSyncManager: com.randallengineering.finances.core.sync.UserDataSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    val cloudSyncState = userDataSyncManager.syncState
+
+    fun triggerCloudSync() {
+        viewModelScope.launch {
+            when (val res = userDataSyncManager.syncAll()) {
+                is Resource.Success -> _uiState.update { it.copy(successMessage = res.data) }
+                is Resource.Error -> _uiState.update { it.copy(errorMessage = res.message) }
+                else -> {}
+            }
+        }
+    }
 
     init {
         observeConfig()
