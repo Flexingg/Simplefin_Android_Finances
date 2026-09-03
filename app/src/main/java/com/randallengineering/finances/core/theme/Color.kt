@@ -76,3 +76,11 @@ val FinanceAmberDark = Color(0xFF8A6508)
 val FinanceBlueDark = Color(0xFF0D47A1)
 val FinanceCardDark = Color(0xFF2B3136)
 val FinanceCardShadow = Color(0xFF1C2125)
+
+// Compatibility aliases
+val DuoGreen = FinanceGreen
+val DuoGreenDark = FinanceGreenDark
+val DuoBlueDark = FinanceBlueDark
+val DuoRedDark = FinanceRedDark
+val DuoCardDark = FinanceCardDark
+val DuoCardShadow = FinanceCardShadow

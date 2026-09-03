@@ -1,14 +1,17 @@
-package com.randallengineering.finances.ui.screens.settings
+﻿package com.randallengineering.finances.ui.screens.settings
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.randallengineering.finances.core.ai.GeminiApiClient
 import com.randallengineering.finances.core.auth.SessionManager
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.util.CsvExporter
 import com.randallengineering.finances.core.util.CsvImporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
+import com.randallengineering.finances.data.repository.AiConfigRepository
+import com.randallengineering.finances.data.repository.AiProviderMode
 import com.randallengineering.finances.data.repository.AmazonRepository
 import com.randallengineering.finances.data.repository.DiscretionaryRepository
 import com.randallengineering.finances.data.repository.NotificationPrefsRepository
@@ -34,6 +37,9 @@ data class SettingsUiState(
     val isBiometricAvailable: Boolean = false,
     val accountEmail: String? = null,
     val accountDisplayName: String? = null,
+    val geminiApiKeyInput: String = "",
+    val aiProviderMode: AiProviderMode = AiProviderMode.CUSTOM_KEY,
+    val isTestingGemini: Boolean = false,
     val successMessage: String? = null,
     val errorMessage: String? = null,
     val errList: List<String> = emptyList(),
@@ -56,7 +62,9 @@ class SettingsViewModel(
     private val transactionRepository: TransactionRepository,
     private val syncStatusRepository: SyncStatusRepository,
     private val notificationPrefsRepository: NotificationPrefsRepository,
-    private val discretionaryRepository: DiscretionaryRepository
+    private val discretionaryRepository: DiscretionaryRepository,
+    private val aiConfigRepository: AiConfigRepository,
+    private val geminiApiClient: GeminiApiClient
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -67,10 +75,21 @@ class SettingsViewModel(
         observeSyncStatus()
         observeNotificationPrefs()
         observeDiscretionary()
+        loadAiConfig()
         _uiState.update {
             it.copy(
                 accountEmail = sessionManager.email,
                 accountDisplayName = sessionManager.displayName
+            )
+        }
+    }
+
+    private fun loadAiConfig() {
+        val config = aiConfigRepository.configFlow.value
+        _uiState.update {
+            it.copy(
+                geminiApiKeyInput = config.apiKey,
+                aiProviderMode = config.providerMode
             )
         }
     }
@@ -206,6 +225,57 @@ class SettingsViewModel(
         _uiState.update { it.copy(syncDaysBack = days.coerceIn(1, 1000)) }
     }
 
+    fun onGeminiApiKeyChange(key: String) {
+        _uiState.update { it.copy(geminiApiKeyInput = key) }
+    }
+
+    fun onAiProviderModeChange(mode: AiProviderMode) {
+        _uiState.update { it.copy(aiProviderMode = mode) }
+        aiConfigRepository.setProviderMode(mode)
+    }
+
+    fun saveGeminiConfig() {
+        val key = _uiState.value.geminiApiKeyInput.trim()
+        val mode = _uiState.value.aiProviderMode
+        aiConfigRepository.saveConfig(key, mode)
+        _uiState.update { it.copy(successMessage = "Gemini AI settings saved!") }
+    }
+
+    fun testGeminiConnection() {
+        val key = _uiState.value.geminiApiKeyInput.trim()
+        if (key.isBlank() && _uiState.value.aiProviderMode == AiProviderMode.CUSTOM_KEY) {
+            _uiState.update { it.copy(errorMessage = "Please enter a Gemini API key first.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTestingGemini = true, errorMessage = null) }
+            when (val res = geminiApiClient.generateChatResponse(
+                apiKey = key,
+                systemPrompt = "You are a test agent.",
+                userMessage = "Ping test: respond with 'OK'."
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isTestingGemini = false,
+                            successMessage = "Gemini connected successfully! Response: ${res.data?.responseText?.take(40)}"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isTestingGemini = false,
+                            errorMessage = "Gemini Test Failed: ${res.message}"
+                        )
+                    }
+                }
+                else -> Unit
+            }
+        }
+    }
+
     fun claimToken() {
         val token = _uiState.value.tokenInput.trim()
         if (token.isBlank()) {
@@ -221,17 +291,15 @@ class SettingsViewModel(
                         it.copy(
                             isClaimingToken = false,
                             tokenInput = "",
-                            successMessage = result.data,
-                            isConnected = true
+                            successMessage = "Successfully claimed setup token! Bank connection established."
                         )
                     }
-                    triggerSync()
                 }
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
                             isClaimingToken = false,
-                            errorMessage = result.message
+                            errorMessage = result.message ?: "Failed to claim setup token."
                         )
                     }
                 }
@@ -241,22 +309,16 @@ class SettingsViewModel(
     }
 
     fun triggerSync() {
-        val days = _uiState.value.syncDaysBack
         viewModelScope.launch {
             _uiState.update { it.copy(isSyncing = true, errorMessage = null, successMessage = null) }
-            when (val result = simpleFinRepository.triggerSync(days)) {
+            when (val result = simpleFinSyncUseCase.syncNow(_uiState.value.syncDaysBack)) {
                 is Resource.Success -> {
-                    val errors = result.data.orEmpty()
+                    val count = result.data?.size ?: 0
                     syncStatusRepository.recordSuccess()
                     _uiState.update {
                         it.copy(
                             isSyncing = false,
-                            errList = errors,
-                            successMessage = if (errors.isEmpty()) {
-                                "Synced transactions for past $days days in 89-day batch windows!"
-                            } else {
-                                "Synced transactions (with ${errors.size} notices from institution)."
-                            }
+                            successMessage = "Sync completed! Successfully refreshed $count accounts."
                         )
                     }
                 }
@@ -265,7 +327,7 @@ class SettingsViewModel(
                     _uiState.update {
                         it.copy(
                             isSyncing = false,
-                            errorMessage = result.message
+                            errorMessage = result.message ?: "Synchronization failed."
                         )
                     }
                 }

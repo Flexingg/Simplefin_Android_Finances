@@ -6,7 +6,10 @@ import com.randallengineering.finances.core.finance.TransferDetection
 import com.randallengineering.finances.data.repository.NetWorthRepository
 import com.randallengineering.finances.data.repository.NetWorthPoint
 import com.randallengineering.finances.data.repository.TransactionRepository
+import com.randallengineering.finances.domain.model.RetirementInputs
+import com.randallengineering.finances.domain.model.RetirementProjectionResult
 import com.randallengineering.finances.domain.model.Transaction
+import com.randallengineering.finances.domain.usecase.RetirementCalculatorUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,7 +79,7 @@ data class DebtPayoffSimulation(
 
 data class InsightsUiState(
     val selectedTimeRange: TimeRange = TimeRange.THIS_MONTH,
-    val selectedInsightsTab: Int = 0, // 0 = Trends & Heatmaps, 1 = Net Worth & Debt
+    val selectedInsightsTab: Int = 0, // 0 = Trends, 1 = Heatmap, 2 = Net Worth & Debt, 3 = Retirement & FIRE
     val allTransactions: List<Transaction> = emptyList(),
     val filteredTransactions: List<Transaction> = emptyList(),
     val totalIncome: Double = 0.0,
@@ -93,12 +96,16 @@ data class InsightsUiState(
     val netWorthHistory: List<NetWorthPoint> = emptyList(),
     val liveNetWorth: Double? = null,
     val debtSimulation: DebtPayoffSimulation = DebtPayoffSimulation(),
+    val retirementInputs: RetirementInputs = RetirementInputs(),
+    val retirementProjection: RetirementProjectionResult = RetirementCalculatorUseCase().calculate(RetirementInputs()),
+    val isRetirementSeeded: Boolean = false,
     val isLoading: Boolean = false
 )
 
 class InsightsViewModel(
     private val transactionRepository: TransactionRepository,
-    private val netWorthRepository: NetWorthRepository
+    private val netWorthRepository: NetWorthRepository,
+    private val retirementCalculatorUseCase: RetirementCalculatorUseCase = RetirementCalculatorUseCase()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(InsightsUiState())
@@ -134,6 +141,20 @@ class InsightsViewModel(
                     val netWorth = calculateEstimatedNetWorth(list)
 
                     _uiState.update { current ->
+                        val (seededInputs, seededProj, wasSeeded) = if (!current.isRetirementSeeded && list.isNotEmpty()) {
+                            val savings = max(1000.0, netWorth)
+                            val monthlyContrib = max(100.0, metrics.netCashflow)
+                            val annualSpend = max(24000.0, metrics.totalExpenses * 12.0)
+                            val initInputs = current.retirementInputs.copy(
+                                currentSavings = savings,
+                                monthlyContribution = monthlyContrib,
+                                desiredAnnualRetirementSpend = annualSpend
+                            )
+                            Triple(initInputs, retirementCalculatorUseCase.calculate(initInputs), true)
+                        } else {
+                            Triple(current.retirementInputs, current.retirementProjection, current.isRetirementSeeded)
+                        }
+
                         current.copy(
                             allTransactions = list,
                             filteredTransactions = filtered,
@@ -148,6 +169,9 @@ class InsightsViewModel(
                             currentMonthHeatmap = heatmap,
                             topMerchants = metrics.topMerchants,
                             estimatedNetWorth = netWorth,
+                            retirementInputs = seededInputs,
+                            retirementProjection = seededProj,
+                            isRetirementSeeded = wasSeeded,
                             isLoading = resource.isLoading
                         )
                     }
@@ -200,6 +224,18 @@ class InsightsViewModel(
     fun setDebtStrategy(strategy: String) {
         _uiState.update {
             it.copy(debtSimulation = it.debtSimulation.copy(strategy = strategy))
+        }
+    }
+
+    fun updateRetirementInputs(update: (RetirementInputs) -> RetirementInputs) {
+        val currentInputs = _uiState.value.retirementInputs
+        val newInputs = update(currentInputs)
+        val newProj = retirementCalculatorUseCase.calculate(newInputs)
+        _uiState.update {
+            it.copy(
+                retirementInputs = newInputs,
+                retirementProjection = newProj
+            )
         }
     }
 

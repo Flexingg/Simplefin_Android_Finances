@@ -80,18 +80,21 @@ val appModule = module {
     single { NotificationPrefsRepository(androidContext()) }
     single { SimpleFinRepository(androidContext(), get(), get(), get(), getOrNull(), getOrNull()) }
     single { AmazonRepository(androidContext()) }
+    single { com.randallengineering.finances.data.repository.AiConfigRepository(androidContext()) }
 
     // MCP Tools Suite
-    single { FinancialMcpTools(get(), get(), get(), get(), get(), get(), get()) }
+    single { FinancialMcpTools(get(), get(), get(), get(), get(), get(), get(), get(), getOrNull(), getOrNull()) }
+    single { com.randallengineering.finances.core.ai.GeminiApiClient(get()) }
 
     // UseCases
     single { RuleMatcherUseCase() }
     single { BudgetCalculatorUseCase() }
     single { GoalPacingUseCase() }
     single { TransactionSplitUseCase(get()) }
+    single { com.randallengineering.finances.domain.usecase.RetirementCalculatorUseCase() }
     single { AiAdvisorUseCase(get(), get()) }
     single { SimpleFinSyncUseCase(get()) }
-    single { AiChatbotUseCase(get()) }
+    single { AiChatbotUseCase(get(), get(), get()) }
 
     // ViewModels
     viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get()) }
@@ -100,10 +103,10 @@ val appModule = module {
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RulesViewModel(get(), get()) }
     viewModel { BudgetsViewModel(get(), get(), get(), get(), get(), get()) }
-    viewModel { InsightsViewModel(get(), get()) }
+    viewModel { InsightsViewModel(get(), get(), get()) }
     viewModel { GoalsViewModel(get(), get()) }
-    viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
+    viewModel { AiAdvisorViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
 }

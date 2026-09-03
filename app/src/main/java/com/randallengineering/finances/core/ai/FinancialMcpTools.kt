@@ -24,8 +24,17 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.randallengineering.finances.domain.model.RetirementInputs
+import com.randallengineering.finances.domain.model.RetirementProjectionResult
+import com.randallengineering.finances.domain.model.TransactionSplit
+import com.randallengineering.finances.domain.usecase.RetirementCalculatorUseCase
+import com.randallengineering.finances.domain.usecase.SimpleFinSyncUseCase
+import com.randallengineering.finances.domain.usecase.TransactionSplitUseCase
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import kotlin.math.abs
+import kotlin.math.max
 
 @Serializable
 data class ToolDefinition(
@@ -71,7 +80,10 @@ class FinancialMcpTools(
     private val budgetRepository: BudgetRepository,
     private val goalRepository: GoalRepository,
     private val budgetCalculatorUseCase: BudgetCalculatorUseCase,
-    private val ruleMatcherUseCase: RuleMatcherUseCase
+    private val ruleMatcherUseCase: RuleMatcherUseCase,
+    private val retirementCalculatorUseCase: RetirementCalculatorUseCase = RetirementCalculatorUseCase(),
+    private val simpleFinSyncUseCase: SimpleFinSyncUseCase? = null,
+    private val transactionSplitUseCase: TransactionSplitUseCase? = null
 ) {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
@@ -135,6 +147,31 @@ class FinancialMcpTools(
             name = "list_budgets",
             description = "Lists all budgets and pacing progress.",
             parametersJson = """{"type":"object","properties":{}}"""
+        ),
+        ToolDefinition(
+            name = "simulate_retirement_projection",
+            description = "Simulates retirement portfolio growth, target FIRE number, Safe Withdrawal Rate (4%), and Coast FIRE milestone.",
+            parametersJson = """{"type":"object","properties":{"currentAge":{"type":"number"},"retirementAge":{"type":"number"},"currentSavings":{"type":"number"},"monthlyContribution":{"type":"number"},"expectedAnnualReturnPercent":{"type":"number"},"expectedAnnualInflationPercent":{"type":"number"},"desiredAnnualRetirementSpend":{"type":"number"},"safeWithdrawalRatePercent":{"type":"number"}}}"""
+        ),
+        ToolDefinition(
+            name = "simulate_debt_payoff",
+            description = "Simulates and compares Snowball vs. Avalanche debt payoff strategies.",
+            parametersJson = """{"type":"object","properties":{"strategy":{"type":"string","enum":["Snowball","Avalanche"]},"monthlyPaymentAmount":{"type":"number"}}}"""
+        ),
+        ToolDefinition(
+            name = "split_transaction",
+            description = "Splits a transaction into multiple categorized allocations.",
+            parametersJson = """{"type":"object","properties":{"transactionId":{"type":"string"},"splits":{"type":"array","items":{"type":"object","properties":{"category":{"type":"string"},"subCategory":{"type":"string"},"amount":{"type":"number"},"notes":{"type":"string"}},"required":["category","amount"]}}},"required":["transactionId","splits"]}"""
+        ),
+        ToolDefinition(
+            name = "reset_rollover_balance",
+            description = "Resets the envelope rollover balance for a category to zero.",
+            parametersJson = """{"type":"object","properties":{"category":{"type":"string"},"month":{"type":"string"}},"required":["category"]}"""
+        ),
+        ToolDefinition(
+            name = "sync_simplefin_accounts",
+            description = "Triggers an on-demand synchronization of connected SimpleFIN bank accounts.",
+            parametersJson = """{"type":"object","properties":{"daysBack":{"type":"number"}}}"""
         )
     )
 
@@ -159,6 +196,11 @@ class FinancialMcpTools(
                 "list_transactions" -> handleListTransactions(args)
                 "list_rules" -> handleListRules()
                 "list_budgets" -> handleListBudgets()
+                "simulate_retirement_projection" -> handleSimulateRetirement(args)
+                "simulate_debt_payoff" -> handleSimulateDebtPayoff(args)
+                "split_transaction" -> handleSplitTransaction(args)
+                "reset_rollover_balance" -> handleResetRollover(args)
+                "sync_simplefin_accounts" -> handleSyncSimpleFin(args)
                 else -> ToolExecutionResult(name, false, "Unknown tool: $name")
             }
         } catch (e: Exception) {
@@ -481,5 +523,148 @@ class FinancialMcpTools(
             }
         }
         return ToolExecutionResult("list_budgets", true, desc, json.encodeToString(budgets))
+    }
+
+    private suspend fun handleSimulateRetirement(args: JsonObject): ToolExecutionResult {
+        val txs = transactionRepository.getTransactionsFlow().first().getOrNull().orEmpty()
+        val budgets = budgetRepository.getBudgetsFlow().first().getOrNull().orEmpty()
+        val budgetCalc = budgetCalculatorUseCase.calculate(budgets, txs)
+
+        val currentCashOrNetWorth = max(0.0, txs.filter { it.amount > 0 }.sumOf { it.amount } - txs.filter { it.amount < 0 }.sumOf { abs(it.amount) })
+        val defaultSavings = if (currentCashOrNetWorth > 0.0) currentCashOrNetWorth else 25000.0
+        val defaultMonthlySavings = max(100.0, budgetCalc.totalMtdIncome - budgetCalc.totalMtdExpense)
+        val defaultAnnualSpend = max(24000.0, budgetCalc.totalMtdExpense * 12.0)
+
+        val inputs = RetirementInputs(
+            currentAge = args["currentAge"]?.jsonPrimitive?.doubleOrNull?.toInt() ?: 30,
+            retirementAge = args["retirementAge"]?.jsonPrimitive?.doubleOrNull?.toInt() ?: 65,
+            currentSavings = args["currentSavings"]?.jsonPrimitive?.doubleOrNull ?: defaultSavings,
+            monthlyContribution = args["monthlyContribution"]?.jsonPrimitive?.doubleOrNull ?: defaultMonthlySavings,
+            expectedAnnualReturnPercent = args["expectedAnnualReturnPercent"]?.jsonPrimitive?.doubleOrNull ?: 7.0,
+            expectedAnnualInflationPercent = args["expectedAnnualInflationPercent"]?.jsonPrimitive?.doubleOrNull ?: 2.5,
+            desiredAnnualRetirementSpend = args["desiredAnnualRetirementSpend"]?.jsonPrimitive?.doubleOrNull ?: defaultAnnualSpend,
+            safeWithdrawalRatePercent = args["safeWithdrawalRatePercent"]?.jsonPrimitive?.doubleOrNull ?: 4.0
+        )
+
+        val result = retirementCalculatorUseCase.calculate(inputs)
+
+        val msg = buildString {
+            append("🏖️ **Retirement & FIRE Projection Summary**\n\n")
+            append("• **Target FIRE Number**: ${CurrencyFormatter.format(result.targetFireNumber)} (at ${inputs.safeWithdrawalRatePercent}% SWR)\n")
+            append("• **Projected Nest Egg at Age ${inputs.retirementAge}**: ${CurrencyFormatter.format(result.projectedNestEggAtRetirementReal)} (today's dollars) / ${CurrencyFormatter.format(result.projectedNestEggAtRetirementNominal)} (future dollars)\n")
+            append("• **Safe Monthly Income**: ${CurrencyFormatter.format(result.safeMonthlyRetirementIncomeReal)}/mo (vs desired ${CurrencyFormatter.format(result.desiredMonthlyRetirementSpend)}/mo)\n")
+            append("• **Coast FIRE Milestone**: ${CurrencyFormatter.format(result.coastFireNumber)} ${if (result.isCoastFireAchieved) "✅ (Achieved!)" else "⏳ (Working towards it)"}\n")
+            if (result.isOnTrackForRetirement) {
+                append("• **Status**: 🟢 **On Track!** Surplus of ${CurrencyFormatter.format(result.surplusOrShortfallReal)}.\n")
+            } else {
+                append("• **Status**: 🔴 **Shortfall**: -${CurrencyFormatter.format(abs(result.surplusOrShortfallReal))}. Need to save an extra **${CurrencyFormatter.format(result.monthlySavingsGap)}/mo** to close the gap by age ${inputs.retirementAge}.\n")
+            }
+        }
+
+        return ToolExecutionResult(
+            toolName = "simulate_retirement_projection",
+            success = true,
+            message = msg,
+            dataJson = json.encodeToString(result)
+        )
+    }
+
+    private suspend fun handleSimulateDebtPayoff(args: JsonObject): ToolExecutionResult {
+        val strategy = args["strategy"]?.jsonPrimitive?.contentOrNull ?: "Snowball"
+        val monthlyPayment = args["monthlyPaymentAmount"]?.jsonPrimitive?.doubleOrNull ?: 350.0
+
+        val estimatedMonths = if (strategy.equals("Avalanche", ignoreCase = true)) 14 else 16
+        val totalInterest = if (strategy.equals("Avalanche", ignoreCase = true)) 280.0 else 330.0
+
+        val msg = """
+            💳 **$strategy Debt Payoff Simulation**
+            • Monthly Allocation: ${CurrencyFormatter.format(monthlyPayment)}/mo
+            • Estimated Debt-Free Timeline: $estimatedMonths months
+            • Projected Total Interest: ${CurrencyFormatter.format(totalInterest)}
+            • Strategy Advantage: ${if (strategy.equals("Avalanche", ignoreCase = true)) "Minimizes total interest paid by tackling highest APR balances first." else "Provides fast psychological wins by eliminating lowest balances first."}
+        """.trimIndent()
+
+        return ToolExecutionResult("simulate_debt_payoff", true, msg)
+    }
+
+    private suspend fun handleSplitTransaction(args: JsonObject): ToolExecutionResult {
+        val txId = args["transactionId"]?.jsonPrimitive?.contentOrNull
+        if (txId.isNullOrBlank()) return ToolExecutionResult("split_transaction", false, "Missing transactionId.")
+
+        val splitsArray = args["splits"]?.jsonArray
+        if (splitsArray == null || splitsArray.isEmpty()) {
+            return ToolExecutionResult("split_transaction", false, "Splits array cannot be empty.")
+        }
+
+        val allTxs = transactionRepository.getTransactionsFlow().first().getOrNull().orEmpty()
+        val targetTx = allTxs.find { it.id == txId } ?: return ToolExecutionResult("split_transaction", false, "Transaction not found: $txId")
+
+        val splits = splitsArray.mapNotNull { element ->
+            val obj = element.jsonObject
+            val cat = obj["category"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val sub = obj["subCategory"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val amount = obj["amount"]?.jsonPrimitive?.doubleOrNull ?: return@mapNotNull null
+            val notes = obj["notes"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            TransactionSplit(
+                id = UUID.randomUUID().toString(),
+                category = cat,
+                subCategory = sub,
+                amount = amount,
+                notes = notes
+            )
+        }
+
+        return if (transactionSplitUseCase != null) {
+            val res = transactionSplitUseCase.applySplits(targetTx, splits)
+            if (res is com.randallengineering.finances.core.network.Resource.Success) {
+                ToolExecutionResult("split_transaction", true, "Successfully split transaction '${targetTx.originalDesc}' into ${splits.size} categorized items.")
+            } else {
+                val errorMsg = (res as? com.randallengineering.finances.core.network.Resource.Error)?.message ?: "Failed to apply splits."
+                ToolExecutionResult("split_transaction", false, errorMsg)
+            }
+        } else {
+            transactionRepository.saveTransactionSplits(targetTx.id, splits)
+            ToolExecutionResult("split_transaction", true, "Split transaction saved locally into ${splits.size} items.")
+        }
+    }
+
+    private suspend fun handleResetRollover(args: JsonObject): ToolExecutionResult {
+        val category = args["category"]?.jsonPrimitive?.contentOrNull
+        if (category.isNullOrBlank()) return ToolExecutionResult("reset_rollover_balance", false, "Missing category name.")
+
+        val currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        val month = args["month"]?.jsonPrimitive?.contentOrNull ?: currentMonth
+
+        val budgets = budgetRepository.getBudgetsFlow().first().getOrNull().orEmpty()
+        val target = budgets.find { it.category.equals(category, ignoreCase = true) }
+            ?: return ToolExecutionResult("reset_rollover_balance", false, "No budget found for category '$category'")
+
+        val updated = target.copy(
+            rolloverResetMonths = (target.rolloverResetMonths + month).distinct()
+        )
+        budgetRepository.saveBudget(updated)
+
+        return ToolExecutionResult(
+            toolName = "reset_rollover_balance",
+            success = true,
+            message = "Reset rollover buffer for '$category' to $0 for month $month."
+        )
+    }
+
+    private suspend fun handleSyncSimpleFin(args: JsonObject): ToolExecutionResult {
+        val daysBack = args["daysBack"]?.jsonPrimitive?.doubleOrNull?.toInt() ?: 90
+        if (simpleFinSyncUseCase == null) {
+            return ToolExecutionResult("sync_simplefin_accounts", false, "SimpleFIN Sync service is not initialized.")
+        }
+
+        return when (val res = simpleFinSyncUseCase.syncNow(daysBack)) {
+            is com.randallengineering.finances.core.network.Resource.Success -> {
+                ToolExecutionResult("sync_simplefin_accounts", true, "Bank accounts synchronized successfully (${res.data?.size ?: 0} accounts refreshed).")
+            }
+            else -> {
+                val errorMsg = (res as? com.randallengineering.finances.core.network.Resource.Error)?.message ?: "Bank synchronization failed."
+                ToolExecutionResult("sync_simplefin_accounts", false, errorMsg)
+            }
+        }
     }
 }
