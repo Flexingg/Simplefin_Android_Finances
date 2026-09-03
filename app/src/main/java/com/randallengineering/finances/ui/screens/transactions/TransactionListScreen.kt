@@ -219,6 +219,9 @@ fun TransactionListScreen(
                     )
                 }
             } else {
+                val accountNameById = remember(uiState.accounts) {
+                    uiState.accounts.associate { acc -> acc.id to (acc.name.ifBlank { acc.orgName }.ifBlank { acc.id }) }
+                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 88.dp),
@@ -231,6 +234,7 @@ fun TransactionListScreen(
                         val context = androidx.compose.ui.platform.LocalContext.current
                         TransactionItemCard(
                             transaction = transaction,
+                            accountLabel = accountNameById[transaction.accountId],
                             onClick = { onNavigateToDetail(transaction.id) },
                             onAmazonClick = { viewModel.openAmazonOrders(context) }
                         )
@@ -244,6 +248,7 @@ fun TransactionListScreen(
 @Composable
 fun TransactionItemCard(
     transaction: Transaction,
+    accountLabel: String? = null,
     onClick: () -> Unit,
     onAmazonClick: () -> Unit
 ) {
@@ -362,6 +367,16 @@ fun TransactionItemCard(
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    if (accountLabel != null) {
+                        Text("•", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = accountLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 

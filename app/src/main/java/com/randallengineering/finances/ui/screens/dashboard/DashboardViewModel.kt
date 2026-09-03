@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.prefs.DashboardLayoutRepository
+import com.randallengineering.finances.core.finance.TransferDetection
 import com.randallengineering.finances.data.repository.AccountRepository
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
@@ -90,7 +91,15 @@ class DashboardViewModel(
     }
 
     private fun loadLayout() {
-        val layout = layoutRepository.getLayout()
+        var layout = layoutRepository.getLayout()
+        // Auto-add any newly-introduced card types (e.g. ACCOUNTS) so they show
+        // even if the user has an older saved/customized layout.
+        val present = layout.map { it.first }.toSet()
+        val missing = DashboardCardType.entries.filter { it !in present }.map { it to true }
+        if (missing.isNotEmpty()) {
+            layout = layout + missing
+            layoutRepository.saveLayout(layout)
+        }
         _uiState.update {
             it.copy(
                 fullLayout = layout,
@@ -190,23 +199,30 @@ class DashboardViewModel(
         val monthTxs = transactions.filter { it.postedEpochSeconds >= monthStart }
         val prevMonthTxs = transactions.filter { it.postedEpochSeconds >= prevMonthStart && it.postedEpochSeconds < monthStart }
 
+        // Internal transfers between own accounts are not income or spending.
+        val transferIds = TransferDetection.detectTransferIds(transactions)
+        fun isIncomeTx(tx: Transaction): Boolean =
+            tx.amount > 0 && tx.id !in transferIds
+        fun isExpenseTx(tx: Transaction): Boolean =
+            tx.amount < 0 && !tx.category.equals("Income", ignoreCase = true) && tx.id !in transferIds
+
         val totalBalance = transactions.sumOf { it.amount }
         val monthIncome = monthTxs
-            .filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }
+            .filter { isIncomeTx(it) }
             .sumOf { abs(it.amount) }
         val monthExpenses = monthTxs
-            .filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }
+            .filter { isExpenseTx(it) }
             .sumOf { abs(it.amount) }
         val lastMonthIncome = prevMonthTxs
-            .filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }
+            .filter { isIncomeTx(it) }
             .sumOf { abs(it.amount) }
         val lastMonthExpenses = prevMonthTxs
-            .filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }
+            .filter { isExpenseTx(it) }
             .sumOf { abs(it.amount) }
         val monthNet = monthIncome - monthExpenses
 
         val catMap = mutableMapOf<String, Double>()
-        for (tx in monthTxs.filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }) {
+        for (tx in monthTxs.filter { isExpenseTx(it) }) {
             val cat = tx.category.ifBlank { "Uncategorized" }
             catMap[cat] = (catMap[cat] ?: 0.0) + abs(tx.amount)
         }

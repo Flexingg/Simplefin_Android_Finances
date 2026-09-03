@@ -2,6 +2,7 @@ package com.randallengineering.finances.ui.screens.insights
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.randallengineering.finances.core.finance.TransferDetection
 import com.randallengineering.finances.data.repository.NetWorthRepository
 import com.randallengineering.finances.data.repository.NetWorthPoint
 import com.randallengineering.finances.data.repository.TransactionRepository
@@ -205,13 +206,14 @@ class InsightsViewModel(
     private fun calculateMultiMonthTrends(transactions: List<Transaction>): List<MonthlyTrendItem> {
         val now = LocalDate.now()
         val result = mutableListOf<MonthlyTrendItem>()
+        val transferIds = TransferDetection.detectTransferIds(transactions)
 
         for (i in 5 downTo 0) {
             val targetMonth = now.minusMonths(i.toLong())
             val startEpoch = targetMonth.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond()
             val endEpoch = targetMonth.withDayOfMonth(targetMonth.lengthOfMonth()).atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toEpochSecond()
 
-            val monthTxs = transactions.filter { it.postedEpochSeconds in startEpoch..endEpoch }
+            val monthTxs = transactions.filter { it.postedEpochSeconds in startEpoch..endEpoch && it.id !in transferIds }
             val income = monthTxs.filter { it.amount > 0 || it.category.equals("Income", ignoreCase = true) }.sumOf { abs(it.amount) }
             val expense = monthTxs.filter { it.amount < 0 && !it.category.equals("Income", ignoreCase = true) }.sumOf { abs(it.amount) }
 
@@ -308,6 +310,7 @@ class InsightsViewModel(
         var income = 0.0
         var expenses = 0.0
 
+        val transferIds = TransferDetection.detectTransferIds(transactions)
         val categoryMap = mutableMapOf<String, Double>()
         val categoryCountMap = mutableMapOf<String, Int>()
         val merchantMap = mutableMapOf<String, Double>()
@@ -315,6 +318,7 @@ class InsightsViewModel(
         val daySpendMap = mutableMapOf<Long, Double>()
 
         for (tx in transactions) {
+            if (tx.id in transferIds) continue // internal transfers are not income/spending
             val isIncome = tx.amount > 0 || tx.category.equals("Income", ignoreCase = true)
             if (isIncome) {
                 income += abs(tx.amount)
