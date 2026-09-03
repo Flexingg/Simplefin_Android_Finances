@@ -6,6 +6,7 @@ import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.repository.RuleRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.Rule
+import com.randallengineering.finances.domain.model.Transaction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 
 data class RulesUiState(
     val rules: List<Rule> = emptyList(),
+    val ruleMatches: Map<String, List<Transaction>> = emptyMap(),
     val isLoading: Boolean = false,
     val editingRule: Rule? = null,
     val isCreatingNewRule: Boolean = false,
@@ -54,9 +56,18 @@ class RulesViewModel(
                     rule.copy(matchCount = count)
                 }
 
+                // Drill-down: which real transactions each rule would match / already applied to.
+                val ruleMatches = rawRules.associate { rule ->
+                    rule.id to transactions
+                        .filter { tx -> tx.matchedRuleId == rule.id || rule.matches(tx.originalDesc, tx.amount) }
+                        .sortedByDescending { it.postedEpochSeconds }
+                        .take(50)
+                }
+
                 _uiState.update {
                     it.copy(
                         rules = rulesWithMatchCount,
+                        ruleMatches = ruleMatches,
                         isLoading = isLoading
                     )
                 }

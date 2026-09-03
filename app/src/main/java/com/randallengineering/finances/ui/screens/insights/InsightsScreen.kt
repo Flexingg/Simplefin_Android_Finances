@@ -56,12 +56,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import com.randallengineering.finances.data.repository.NetWorthPoint
+import com.randallengineering.finances.core.util.DateUtils
+import com.randallengineering.finances.domain.model.Transaction
+import java.util.Locale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -277,6 +283,10 @@ private fun TrendsTabContent(
                     Text(CurrencyFormatter.format(cat.totalAmount), fontWeight = FontWeight.Black, style = MaterialTheme.typography.bodyLarge)
                 }
             }
+        }
+
+        item {
+            MerchantDrillSection(uiState)
         }
     }
 }
@@ -587,6 +597,97 @@ private fun NetWorthTrendCard(history: List<NetWorthPoint>, current: Double?) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("${CurrencyFormatter.format(maxVal)} max", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("${CurrencyFormatter.format(minVal)} min", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Per-merchant drill-down: tap a top merchant to expand its real transactions. */
+@Composable
+private fun MerchantDrillSection(uiState: InsightsUiState) {
+    if (uiState.topMerchants.isEmpty()) return
+
+    fun merchantKey(tx: Transaction): String = tx.payee.ifBlank { tx.originalDesc }.take(25)
+
+    var expanded by remember { mutableStateOf<String?>(null) }
+
+    val merchants = uiState.topMerchants.take(10)
+
+    Card(
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Top merchants", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Where your money goes — tap a merchant to see its transactions.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            merchants.forEach { m ->
+                val isOpen = expanded == m.merchant
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = if (isOpen) null else m.merchant },
+                    shape = Shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isOpen) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    )
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(m.merchant, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text("${m.count} tx • ${String.format(Locale.US, "%.1f%%", m.percentageOfTotal)} of spend", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(CurrencyFormatter.format(m.totalAmount), fontWeight = FontWeight.Black, style = MaterialTheme.typography.bodyLarge)
+                        }
+
+                        if (isOpen) {
+                            val txs = uiState.filteredTransactions
+                                .filter { merchantKey(it) == m.merchant }
+                                .sortedByDescending { it.postedEpochSeconds }
+                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(6.dp))
+                            if (txs.isEmpty()) {
+                                Text("No matching transactions in this range.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else {
+                                txs.forEach { tx ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(DateUtils.formatDate(tx.postedEpochSeconds), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(tx.category.ifBlank { "Uncategorized" }, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Text(
+                                            CurrencyFormatter.formatWithSign(tx.amount),
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (tx.amount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

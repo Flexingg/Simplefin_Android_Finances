@@ -34,6 +34,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -43,6 +46,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.randallengineering.finances.core.theme.Shapes
 import com.randallengineering.finances.domain.model.Rule
 import com.randallengineering.finances.ui.components.ExpressiveCard
+import com.randallengineering.finances.domain.model.Transaction
+import com.randallengineering.finances.core.util.CurrencyFormatter
+import com.randallengineering.finances.core.util.DateUtils
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import com.randallengineering.finances.ui.components.RuleEditorDialog
 import org.koin.androidx.compose.koinViewModel
 
@@ -51,6 +60,7 @@ fun RulesManagementScreen(
     viewModel: RulesViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var expandedRuleId by remember { mutableStateOf<String?>(null) }
 
     if (uiState.isCreatingNewRule || uiState.editingRule != null) {
         RuleEditorDialog(
@@ -142,6 +152,24 @@ fun RulesManagementScreen(
                             onEdit = { viewModel.openEditRuleDialog(rule) },
                             onDelete = { viewModel.deleteRule(rule.id) }
                         )
+                        val matched = uiState.ruleMatches[rule.id].orEmpty()
+                        if (expandedRuleId == rule.id) {
+                            RuleMatchedCard(
+                                matched = matched,
+                                onCollapse = { expandedRuleId = null }
+                            )
+                        } else {
+                            OutlinedButton(
+                                onClick = { expandedRuleId = rule.id },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    if (rule.matchCount > 0)
+                                        "▾ Show ${rule.matchCount} matched transactions"
+                                    else "No matched transactions yet"
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -260,6 +288,67 @@ fun RuleItemCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+/** Expands to show the real transactions this rule matches / has applied to. */
+@Composable
+private fun RuleMatchedCard(matched: List<Transaction>, onCollapse: () -> Unit) {
+    ExpressiveCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Matched transactions (${matched.size})", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                OutlinedButton(onClick = onCollapse) { Text("Collapse") }
+            }
+
+            if (matched.isEmpty()) {
+                Text(
+                    "No transactions currently match this rule. It will apply automatically to new ones during sync.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                matched.forEach { tx ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                tx.originalDesc,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "${DateUtils.formatDate(tx.postedEpochSeconds)} · ${tx.category.ifBlank { "Uncategorized" }}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            CurrencyFormatter.formatWithSign(tx.amount),
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (tx.amount < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
     }
