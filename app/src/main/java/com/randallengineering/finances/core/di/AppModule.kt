@@ -69,7 +69,7 @@ val appModule = module {
     // Repositories (with local storage & offline fallback)
     single { TransactionRepository(androidContext(), get(), getOrNull()) }
     single { RuleRepository(androidContext(), get(), getOrNull()) }
-    single { DiscretionaryRepository(get(), get()) }
+    single { DiscretionaryRepository(get(), get(), getOrNull()) }
     single { BudgetRepository(androidContext(), get(), getOrNull()) }
     single { GoalRepository(androidContext(), get(), getOrNull()) }
     single { StorageRepository(get()) }

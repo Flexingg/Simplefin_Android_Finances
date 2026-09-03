@@ -1,11 +1,15 @@
 package com.randallengineering.finances.data.repository
 
+import com.google.firebase.firestore.FirebaseFirestore
+import com.randallengineering.finances.core.auth.SyncScope
 import com.randallengineering.finances.core.finance.DiscretionaryCalculator
 import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.data.local.DomainRecordRow
 import com.randallengineering.finances.data.local.GenericRecordDao
 import com.randallengineering.finances.domain.model.DiscretionaryConfig
 import com.randallengineering.finances.domain.model.Transaction
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.jvm.Volatile
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -28,7 +33,8 @@ import kotlinx.serialization.json.Json
  */
 class DiscretionaryRepository(
     private val dao: GenericRecordDao,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val firestore: FirebaseFirestore? = null
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -57,6 +63,9 @@ class DiscretionaryRepository(
         scope.launch { collectState() }
     }
 
+    @Volatile
+    private var lastPushedSignature: String? = null
+
     private suspend fun collectState() {
         combine(config, transactionList) { cfg, txs ->
             val summary = DiscretionaryCalculator.summary(
@@ -71,7 +80,33 @@ class DiscretionaryRepository(
                 spentByCategory = summary.categories,
                 toggleCategories = toggleCategoriesFrom(txs, cfg)
             )
-        }.collect { _state.value = it }
+        }.collect { state ->
+            _state.value = state
+            pushToFirestore(state)
+        }
+    }
+
+    private fun pushToFirestore(state: DiscretionaryState) {
+        val uid = SyncScope.uid ?: return
+        val month = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
+        val signature = "${month}|${state.config.setpoint}|${state.monthlySpend}|${state.config.necessaryCategories.joinToString(",")}"
+        if (signature == lastPushedSignature) return
+        lastPushedSignature = signature
+
+        val data = mapOf(
+            "setpoint" to state.config.setpoint,
+            "necessaryCategories" to state.config.necessaryCategories,
+            "month" to month,
+            "monthlySpend" to state.monthlySpend,
+            "remaining" to state.remaining,
+            "spentByCategory" to state.spentByCategory.associate { it.name to it.spent },
+            "updatedEpochSeconds" to (System.currentTimeMillis() / 1000)
+        )
+        runCatching {
+            firestore?.collection("users/$uid/discretionary")
+                ?.document("state")
+                ?.set(data)
+        }
     }
 
     private fun toggleCategoriesFrom(txs: List<Transaction>, cfg: DiscretionaryConfig): List<String> {

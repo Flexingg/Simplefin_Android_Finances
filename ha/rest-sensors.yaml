@@ -1,0 +1,36 @@
+# REST sensors that expose the finance discretionary doc as HA entities.
+# Add to configuration.yaml (sensor:), replacing YOUR_JSON_URL with the HTTP
+# URL that serves the Firestore doc users/{uid}/discretionary/state as JSON.
+
+# - platform: rest
+#   name: "Finance Discretionary State"
+#   unique_id: finance_discretionary_state
+#   resource: YOUR_JSON_URL
+#   method: GET
+#   scan_interval: 300
+#   json_attributes_path: "$."
+#   json_attributes:
+#     - "setpoint"
+#     - "necessaryCategories"
+#     - "month"
+#     - "monthlySpend"
+#     - "remaining"
+#     - "spentByCategory"
+#     - "updatedEpochSeconds"
+#   value_template: "{{ value_json.remaining }}"
+
+# Template sensors that give the ApexCharts card clean numbers:
+# - platform: template
+#   sensors:
+#     finance_fun_money_remaining:
+#       friendly_name: "Fun money left this month"
+#       unit_of_measurement: "USD"
+#       value_template: "{{ state_attr('sensor.finance_discretionary_state', 'remaining') | float(0) }}"
+#     finance_fun_money_spent:
+#       friendly_name: "Discretionary spent this month"
+#       unit_of_measurement: "USD"
+#       value_template: "{{ state_attr('sensor.finance_discretionary_state', 'monthlySpend') | float(0) }}"
+#     finance_fun_money_setpoint:
+#       friendly_name: "Monthly fun-money setpoint"
+#       unit_of_measurement: "USD"
+#       value_template: "{{ state_attr('sensor.finance_discretionary_state', 'setpoint') | float(0) }}"

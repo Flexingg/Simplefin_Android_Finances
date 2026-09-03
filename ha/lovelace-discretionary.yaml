@@ -1,0 +1,90 @@
+# Discretionary ("fun money") finance dashboard for Home Assistant.
+# Requires the HACS `apexcharts-card` integration (already installed).
+# Import as a new dashboard, or paste `views[0]` into an existing dashboard.
+#
+# Entity placeholders (from rest-sensors.yaml) — change these if your sensors
+# use different entity_ids:
+#   sensor.finance_fun_money_remaining / _spent / _setpoint
+#   sensor.finance_discretionary_state  (spentByCategory is in its attributes)
+views:
+  - title: Discretionary
+    path: discretionary
+    type: panel
+    cards:
+      # Remaining vs setpoint this month (gauge)
+      - type: custom:apexcharts-card
+        header:
+          title: Fun money left this month
+          show: true
+        experimental:
+          color_threshold: true
+        apex_config:
+          chart:
+            type: radialBar
+          plotOptions:
+            radialBar:
+              dataLabels:
+                name:
+                  show: true
+                value:
+                  fontSize: 28px
+                  formatter: !include /config/apex_format.js
+          series:
+            - name: Remaining
+              data:
+                - '{{ states("sensor.finance_fun_money_remaining") }}'
+        color_threshold:
+          - value: 0
+            color: red
+          - value: 50
+            color: amber
+          - value: 100
+            color: green
+
+      # This month's discretionary spend by category (bar)
+      - type: custom:apexcharts-card
+        header:
+          title: Spent by category (this month)
+          show: true
+        apex_config:
+          chart:
+            type: bar
+          plotOptions:
+            bar:
+              horizontal: true
+          xaxis:
+            categories: "{{ state_attr('sensor.finance_discretionary_state', 'spentByCategory') | dictsort | map(attribute=0) | list }}"
+          series:
+            - name: Spent
+              data: "{{ state_attr('sensor.finance_discretionary_state', 'spentByCategory') | dictsort | map(attribute=1) | list }}"
+
+      # Monthly trend: setpoint vs discretionary spend (line)
+      # NOTE: apexcharts-card charts HA entity *history*. Feed it a monthly
+      # "fun money spent" sensor that records history (e.g. from a recorder-
+      # persisted finance_spent sensor) to see the line over time.
+      - type: custom:apexcharts-card
+        header:
+          title: Discretionary spend trend (needs a history sensor)
+          show: true
+        apex_config:
+          chart:
+            type: line
+          stroke:
+            width: 3
+          series:
+            - entity: sensor.finance_fun_money_spent
+              name: Discretionary spend
+      - type: custom:apexcharts-card
+        header:
+          title: Remaining vs setpoint (this month)
+          show: true
+        apex_config:
+          chart:
+            type: bar
+          series:
+            - entity: sensor.finance_fun_money_remaining
+              name: Remaining
+              type: column
+            - entity: sensor.finance_fun_money_setpoint
+              name: Setpoint
+              type: column
