@@ -18,5 +18,6 @@ data class DomainRecordRow(
         const val KIND_BUDGET = "budget"
         const val KIND_GOAL = "goal"
         const val KIND_CATEGORY = "category"
+        const val KIND_DISCRETIONARY = "discretionary"
     }
 }

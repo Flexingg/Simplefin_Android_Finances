@@ -6,6 +6,7 @@ import com.randallengineering.finances.core.network.Resource
 import com.randallengineering.finances.core.prefs.DashboardLayoutRepository
 import com.randallengineering.finances.core.finance.TransferDetection
 import com.randallengineering.finances.data.repository.AccountRepository
+import com.randallengineering.finances.data.repository.DiscretionaryRepository
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
 import com.randallengineering.finances.domain.model.DashboardCardType
@@ -50,6 +51,7 @@ data class DashboardUiState(
     val hasLiveBalances: Boolean = false,
     val enabledCards: List<DashboardCardType> = DashboardCardType.entries.toList(),
     val fullLayout: List<Pair<DashboardCardType, Boolean>> = DashboardCardType.entries.map { it to true },
+    val discretionary: DiscretionaryRepository.DiscretionaryState? = null,
     val isLoading: Boolean = false
 )
 
@@ -58,7 +60,8 @@ class DashboardViewModel(
     private val budgetRepository: BudgetRepository,
     private val budgetCalculatorUseCase: BudgetCalculatorUseCase,
     private val layoutRepository: DashboardLayoutRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val discretionaryRepository: DiscretionaryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -72,6 +75,15 @@ class DashboardViewModel(
         observeTransactions()
         observeBudgets()
         observeAccounts()
+        observeDiscretionary()
+    }
+
+    private fun observeDiscretionary() {
+        viewModelScope.launch {
+            discretionaryRepository.state.collect { state ->
+                _uiState.update { it.copy(discretionary = state) }
+            }
+        }
     }
 
     private fun observeAccounts() {

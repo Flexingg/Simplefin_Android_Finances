@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.randallengineering.finances.core.util.CurrencyFormatter
 import com.randallengineering.finances.domain.model.DashboardCardType
+import com.randallengineering.finances.data.repository.DiscretionaryRepository
 import com.randallengineering.finances.domain.model.SimpleFinAccount
 import com.randallengineering.finances.domain.model.Transaction
 import org.koin.androidx.compose.koinViewModel
@@ -159,6 +160,42 @@ private fun DashboardCard(
         DashboardCardType.NEEDS_REVIEW -> NeedsReviewCard(state.uncategorizedCount, onNavigateToQueue)
         DashboardCardType.QUICK_ACTIONS -> QuickActionsCard(onNavigateToQueue, onNavigateToBudgets, onNavigateToInsights)
         DashboardCardType.ACCOUNTS -> AccountsCard(state.accounts, state.accountTxCounts)
+        DashboardCardType.DISCRETIONARY -> DiscretionaryCard(state.discretionary)
+    }
+}
+
+@Composable
+private fun DiscretionaryCard(data: DiscretionaryRepository.DiscretionaryState?) {
+    val setpoint = data?.config?.setpoint ?: 0.0
+    val remaining = data?.remaining ?: 0.0
+    val spent = data?.monthlySpend ?: 0.0
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("🍿 Fun money left this month", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (setpoint > 0) {
+                val color = if (remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                Text(
+                    text = "${if (remaining >= 0) "Remaining" else "Over by"}  ${CurrencyFormatter.format(remaining)}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = color
+                )
+                Text(
+                    "${CurrencyFormatter.format(spent)} discretionary spent of ${CurrencyFormatter.format(setpoint)} allowance (resets the 1st)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    "Set a monthly allowance in Settings to track discretionary spending.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

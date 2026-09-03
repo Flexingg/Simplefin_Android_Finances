@@ -16,5 +16,6 @@ enum class DashboardCardType(val title: String, val subtitle: String) {
     RECENT_TRANSACTIONS("Recent Activity", "Latest transactions"),
     NEEDS_REVIEW("Needs Review", "Uncategorized transactions"),
     QUICK_ACTIONS("Quick Actions", "Shortcuts"),
-    ACCOUNTS("Accounts", "Per-account live balances")
+    ACCOUNTS("Accounts", "Per-account live balances"),
+    DISCRETIONARY("Fun Money Left", "Discretionary setpoint minus this month's spend")
 }

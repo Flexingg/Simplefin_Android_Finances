@@ -407,6 +407,19 @@ fun SettingsScreen(
             )
 
             // -------------------------------------------------------------
+            // Discretionary spending setpoint Section
+            // -------------------------------------------------------------
+            DiscretionarySpendingCard(
+                setpoint = uiState.discretionarySetpoint,
+                spent = uiState.discretionarySpent,
+                remaining = uiState.discretionaryRemaining,
+                categories = uiState.discretionaryCategories,
+                necessaryCategories = uiState.necessaryCategories,
+                onSetpoint = { v -> viewModel.setDiscretionarySetpoint(v) },
+                onToggleCategory = { cat, necessary -> viewModel.setCategoryNecessary(cat, necessary) }
+            )
+
+            // -------------------------------------------------------------
             // Amazon Order History Launcher Section
             // -------------------------------------------------------------
             ExpressiveCard(
@@ -652,6 +665,111 @@ private fun CsvImportCard(importing: Boolean, onImport: (String) -> Unit) {
                 } else {
                     Text("Choose CSV file")
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Monthly discretionary-spending "fun money" setpoint. Everything you spend is
+ * discretionary unless you flag its category as Necessary (rent, utilities,
+ * groceries, ...). Remaining = setpoint - discretionary spend for the month.
+ */
+@Composable
+private fun DiscretionarySpendingCard(
+    setpoint: Double,
+    spent: Double,
+    remaining: Double,
+    categories: List<String>,
+    necessaryCategories: Set<String>,
+    onSetpoint: (Double) -> Unit,
+    onToggleCategory: (String, Boolean) -> Unit
+) {
+    var input by remember { mutableStateOf("") }
+    androidx.compose.runtime.LaunchedEffect(setpoint) {
+        input = if (setpoint > 0) setpoint.toInt().toString() else ""
+    }
+
+    ExpressiveCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "🍿 Discretionary spending",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "A monthly allowance (resets the 1st). Everything is discretionary unless you mark a category Necessary below. Transfers & income don't count.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+
+            androidx.compose.material3.OutlinedTextField(
+                value = input,
+                onValueChange = { raw ->
+                    input = raw.filter { it.isDigit() || it == '.' }
+                    val v = input.toDoubleOrNull()
+                    if (v != null) onSetpoint(v) else if (input.isEmpty()) onSetpoint(0.0)
+                },
+                label = { Text("Monthly setpoint") },
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(12.dp))
+            val remainingColor = if (remaining < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+            Text(
+                "Spent this month:  ${"$%.2f".format(spent)}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                if (setpoint > 0) "Left this month:  ${"$%.2f".format(remaining)}"
+                else "Set a monthly setpoint above to track your allowance.",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = remainingColor
+            )
+
+            if (categories.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                androidx.compose.material3.HorizontalDivider()
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Category split — mark the essentials as Necessary:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                categories.forEach { cat ->
+                    val isNecessary = cat in necessaryCategories
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(cat, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                if (isNecessary) "Necessary" else "Discretionary",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = isNecessary,
+                            onCheckedChange = { necessary -> onToggleCategory(cat, necessary) }
+                        )
+                    }
+                }
+            } else {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "No spend categories yet — sync your accounts first.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

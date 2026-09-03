@@ -10,6 +10,7 @@ import com.randallengineering.finances.core.util.CsvExporter
 import com.randallengineering.finances.core.util.CsvImporter
 import com.randallengineering.finances.data.model.SimpleFinConfigEntity
 import com.randallengineering.finances.data.repository.AmazonRepository
+import com.randallengineering.finances.data.repository.DiscretionaryRepository
 import com.randallengineering.finances.data.repository.NotificationPrefsRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.SyncStatusRepository
@@ -39,7 +40,12 @@ data class SettingsUiState(
     val lastSync: SyncStatusRepository.SyncStatus? = null,
     val budgetAlertsEnabled: Boolean = false,
     val reviewAlertsEnabled: Boolean = false,
-    val isImporting: Boolean = false
+    val isImporting: Boolean = false,
+    val discretionarySetpoint: Double = 0.0,
+    val discretionarySpent: Double = 0.0,
+    val discretionaryRemaining: Double = 0.0,
+    val discretionaryCategories: List<String> = emptyList(),
+    val necessaryCategories: Set<String> = emptySet()
 )
 
 class SettingsViewModel(
@@ -49,7 +55,8 @@ class SettingsViewModel(
     private val sessionManager: SessionManager,
     private val transactionRepository: TransactionRepository,
     private val syncStatusRepository: SyncStatusRepository,
-    private val notificationPrefsRepository: NotificationPrefsRepository
+    private val notificationPrefsRepository: NotificationPrefsRepository,
+    private val discretionaryRepository: DiscretionaryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -59,12 +66,37 @@ class SettingsViewModel(
         observeConfig()
         observeSyncStatus()
         observeNotificationPrefs()
+        observeDiscretionary()
         _uiState.update {
             it.copy(
                 accountEmail = sessionManager.email,
                 accountDisplayName = sessionManager.displayName
             )
         }
+    }
+
+    private fun observeDiscretionary() {
+        viewModelScope.launch {
+            discretionaryRepository.state.collect { s ->
+                _uiState.update {
+                    it.copy(
+                        discretionarySetpoint = s.config.setpoint,
+                        discretionarySpent = s.monthlySpend,
+                        discretionaryRemaining = s.remaining,
+                        discretionaryCategories = s.toggleCategories,
+                        necessaryCategories = s.config.necessaryCategories.toSet()
+                    )
+                }
+            }
+        }
+    }
+
+    fun setDiscretionarySetpoint(setpoint: Double) {
+        discretionaryRepository.setSetpoint(setpoint)
+    }
+
+    fun setCategoryNecessary(category: String, necessary: Boolean) {
+        discretionaryRepository.setCategoryNecessary(category, necessary)
     }
 
     private fun observeNotificationPrefs() {

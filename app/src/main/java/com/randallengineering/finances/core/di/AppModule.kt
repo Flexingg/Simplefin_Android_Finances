@@ -8,6 +8,7 @@ import com.randallengineering.finances.core.firebase.FirebaseEmulator.connectEmu
 import com.randallengineering.finances.data.repository.BudgetRepository
 import com.randallengineering.finances.data.repository.GoalRepository
 import com.randallengineering.finances.data.repository.RuleRepository
+import com.randallengineering.finances.data.repository.DiscretionaryRepository
 import com.randallengineering.finances.data.repository.SimpleFinRepository
 import com.randallengineering.finances.data.repository.StorageRepository
 import com.randallengineering.finances.data.repository.TransactionRepository
@@ -68,6 +69,7 @@ val appModule = module {
     // Repositories (with local storage & offline fallback)
     single { TransactionRepository(androidContext(), get(), getOrNull()) }
     single { RuleRepository(androidContext(), get(), getOrNull()) }
+    single { DiscretionaryRepository(get(), get()) }
     single { BudgetRepository(androidContext(), get(), getOrNull()) }
     single { GoalRepository(androidContext(), get(), getOrNull()) }
     single { StorageRepository(get()) }
@@ -94,7 +96,7 @@ val appModule = module {
     // ViewModels
     viewModel { com.randallengineering.finances.core.auth.AuthViewModel(get()) }
     viewModel { SimpleFinOnboardingViewModel(get(), get()) }
-    viewModel { com.randallengineering.finances.ui.screens.dashboard.DashboardViewModel(get(), get(), get(), get(), get()) }
+    viewModel { com.randallengineering.finances.ui.screens.dashboard.DashboardViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { TransactionViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { RulesViewModel(get(), get()) }
     viewModel { BudgetsViewModel(get(), get(), get(), get(), get(), get()) }
@@ -102,6 +104,6 @@ val appModule = module {
     viewModel { GoalsViewModel(get(), get()) }
     viewModel { AiAdvisorViewModel(get(), get(), get(), get()) }
     viewModel { AiChatbotViewModel(get()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
     viewModel { com.randallengineering.finances.ui.screens.queue.ActionQueueViewModel(get(), get(), get()) }
 }
