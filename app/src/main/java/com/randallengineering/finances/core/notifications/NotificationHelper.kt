@@ -14,6 +14,13 @@ import com.randallengineering.finances.core.util.CurrencyFormatter
 
 object NotificationHelper {
 
+    object DeepLinkTarget {
+        const val BUDGETS = "budgets"
+        const val REVIEW_QUEUE = "queue"
+        const val SYNC = "settings"
+    }
+    private const val EXTRA_DEEP_LINK = "deep_link_target"
+
     const val CHANNEL_SYNC = "finances_sync_channel"
     const val CHANNEL_BUDGET_ALERTS = "finances_budget_alerts"
     const val CHANNEL_GAMIFICATION = "finances_gamification_alerts"
@@ -53,13 +60,14 @@ object NotificationHelper {
         }
     }
 
-    private fun getAppLaunchPendingIntent(context: Context): PendingIntent {
+    private fun getAppLaunchPendingIntent(context: Context, target: String? = null, requestCode: Int = 0): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (target != null) putExtra(EXTRA_DEEP_LINK, target)
         }
         return PendingIntent.getActivity(
             context,
-            0,
+            requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -85,7 +93,7 @@ object NotificationHelper {
                 .setContentTitle(title)
                 .setContentText(message)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(getAppLaunchPendingIntent(context))
+                .setContentIntent(getAppLaunchPendingIntent(context, DeepLinkTarget.BUDGETS, 1))
                 .setAutoCancel(true)
                 .build()
 
@@ -106,7 +114,7 @@ object NotificationHelper {
                 .setContentTitle("💳 Large Transaction Detected")
                 .setContentText("${CurrencyFormatter.format(amount)} spent at $merchant. Review in Queue!")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(getAppLaunchPendingIntent(context))
+                .setContentIntent(getAppLaunchPendingIntent(context, DeepLinkTarget.REVIEW_QUEUE, 2))
                 .setAutoCancel(true)
                 .build()
 
@@ -135,7 +143,7 @@ object NotificationHelper {
                 .setContentTitle(title)
                 .setContentText(message)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setContentIntent(getAppLaunchPendingIntent(context))
+                .setContentIntent(getAppLaunchPendingIntent(context, DeepLinkTarget.REVIEW_QUEUE, 2))
                 .setAutoCancel(true)
                 .build()
 
@@ -158,7 +166,7 @@ object NotificationHelper {
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setContentIntent(getAppLaunchPendingIntent(context))
+                .setContentIntent(getAppLaunchPendingIntent(context, DeepLinkTarget.SYNC, 3))
                 .setAutoCancel(true)
                 .build()
 

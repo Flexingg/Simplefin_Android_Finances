@@ -44,8 +44,10 @@ import com.randallengineering.finances.core.security.BiometricAuthManager
 import com.randallengineering.finances.core.theme.RandallFinancesTheme
 import com.randallengineering.finances.core.theme.*
 import com.randallengineering.finances.core.theme.Shapes
+import com.randallengineering.finances.core.notifications.NotificationHelper
 import com.randallengineering.finances.ui.components.*
 import com.randallengineering.finances.ui.navigation.FinanceNavHost
+import com.randallengineering.finances.ui.navigation.Screen
 import org.koin.android.ext.android.inject
 import org.koin.androidx.compose.koinViewModel
 import kotlinx.coroutines.launch
@@ -64,6 +66,9 @@ class MainActivity : FragmentActivity() {
                 val signedIn by sessionManager.isSignedIn.collectAsState()
                 var skippedSync by remember { mutableStateOf(false) }
                 val authViewModel: AuthViewModel = koinViewModel()
+                val deepLinkRoute = remember {
+                    deepLinkRouteFor(intent.getStringExtra("deep_link_target"))
+                }
 
                 val googleLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.StartActivityForResult()
@@ -112,7 +117,7 @@ class MainActivity : FragmentActivity() {
                     }
 
                     if (isAuthenticated) {
-                        FinanceNavHost()
+                        FinanceNavHost(deepLinkRoute = deepLinkRoute)
                     } else {
                         BiometricLockScreen(
                             errorMessage = authErrorMessage,
@@ -199,4 +204,12 @@ fun BiometricLockScreen(
             }
         }
     }
+}
+
+/** Maps a notification deep-link target to a navigation route (null = stay on Dashboard). */
+private fun deepLinkRouteFor(target: String?): String? = when (target) {
+    NotificationHelper.DeepLinkTarget.BUDGETS -> Screen.Budgets.route
+    NotificationHelper.DeepLinkTarget.REVIEW_QUEUE -> Screen.ActionQueue.route
+    NotificationHelper.DeepLinkTarget.SYNC -> Screen.Settings.route
+    else -> null
 }

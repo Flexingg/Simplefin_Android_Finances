@@ -19,7 +19,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -62,10 +66,26 @@ val BottomNavItems = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceNavHost(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    deepLinkRoute: String? = null
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Navigate to the requested screen once, after the NavHost graph is ready
+    // (e.g. the user tapped a notification that deep-links to a screen).
+    var deepLinkHandled by remember { mutableStateOf(false) }
+    LaunchedEffect(navController, deepLinkRoute) {
+        if (deepLinkRoute != null && !deepLinkHandled) {
+            try {
+                navController.navigate(deepLinkRoute) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                }
+                deepLinkHandled = true
+            } catch (_: Exception) { }
+        }
+    }
 
     val shouldShowBottomBar = BottomNavItems.any { it.route == currentRoute }
 
