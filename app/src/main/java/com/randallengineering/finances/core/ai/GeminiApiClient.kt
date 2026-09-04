@@ -48,11 +48,15 @@ class GeminiApiClient(
             // Build initial contents array
             val contentsArray = mutableListOf<JsonObject>()
 
-            // Add previous history
-            for ((role, text) in history) {
+            // Add previous history (Gemini requires the first turn to be 'user')
+            val filteredHistory = history
+                .filter { it.second.isNotBlank() }
+                .dropWhile { it.first != "user" }
+
+            for ((role, text) in filteredHistory) {
                 contentsArray.add(
                     buildJsonObject {
-                        put("role", role)
+                        put("role", if (role == "user") "user" else "model")
                         put("parts", buildJsonArray {
                             add(buildJsonObject { put("text", text) })
                         })
@@ -130,7 +134,7 @@ class GeminiApiClient(
                     // Append function execution response turn to contents
                     contentsArray.add(
                         buildJsonObject {
-                            put("role", "function")
+                            put("role", "user")
                             put("parts", buildJsonArray {
                                 add(buildJsonObject {
                                     put("functionResponse", buildJsonObject {
@@ -140,7 +144,16 @@ class GeminiApiClient(
                                             put("success", toolResult.success)
                                             put("content", toolResult.message)
                                             if (toolResult.dataJson != null) {
-                                                put("data", toolResult.dataJson)
+                                                val parsedData = try {
+                                                    json.parseToJsonElement(toolResult.dataJson)
+                                                } catch (e: Exception) {
+                                                    null
+                                                }
+                                                if (parsedData != null) {
+                                                    put("data", parsedData)
+                                                } else {
+                                                    put("data", toolResult.dataJson)
+                                                }
                                             }
                                         })
                                     })
