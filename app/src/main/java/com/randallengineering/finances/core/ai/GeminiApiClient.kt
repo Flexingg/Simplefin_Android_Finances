@@ -103,62 +103,56 @@ class GeminiApiClient(
                     return@withContext Resource.Error("Empty response from Gemini: $promptFeedback")
                 }
 
-                // Check for function call
-                val functionCallPart = parts.find { it.jsonObject.containsKey("functionCall") }?.jsonObject?.get("functionCall")?.jsonObject
-                val textPart = parts.find { it.jsonObject.containsKey("text") }?.jsonObject?.get("text")?.jsonPrimitive?.content
-
-                if (textPart != null) {
-                    assistantFinalText = textPart
+                val textParts = parts.mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.content }
+                if (textParts.isNotEmpty()) {
+                    assistantFinalText = textParts.joinToString("\n")
                 }
 
-                if (functionCallPart != null) {
-                    val toolName = functionCallPart["name"]?.jsonPrimitive?.content.orEmpty()
-                    val toolArgs = functionCallPart["args"]?.toString() ?: "{}"
+                val functionCallParts = parts.filter { it.jsonObject.containsKey("functionCall") }
 
-                    // Execute MCP tool locally
-                    val toolResult = mcpTools.executeTool(toolName, toolArgs)
-                    executedTools.add(toolResult)
+                if (functionCallParts.isNotEmpty()) {
+                    // 1. Append the model's exact content turn (preserves thought_signature, thoughts, text, and parts)
+                    contentsArray.add(content)
 
-                    // Append model's functionCall turn to contents
-                    contentsArray.add(
-                        buildJsonObject {
-                            put("role", "model")
-                            put("parts", buildJsonArray {
-                                add(buildJsonObject {
-                                    put("functionCall", functionCallPart)
-                                })
-                            })
-                        }
-                    )
+                    // 2. Execute each tool and build response parts
+                    val responseParts = buildJsonArray {
+                        for (part in functionCallParts) {
+                            val fc = part.jsonObject["functionCall"]?.jsonObject ?: continue
+                            val toolName = fc["name"]?.jsonPrimitive?.content.orEmpty()
+                            val toolArgs = fc["args"]?.toString() ?: "{}"
 
-                    // Append function execution response turn to contents
-                    contentsArray.add(
-                        buildJsonObject {
-                            put("role", "user")
-                            put("parts", buildJsonArray {
-                                add(buildJsonObject {
-                                    put("functionResponse", buildJsonObject {
+                            // Execute MCP tool locally
+                            val toolResult = mcpTools.executeTool(toolName, toolArgs)
+                            executedTools.add(toolResult)
+
+                            add(buildJsonObject {
+                                put("functionResponse", buildJsonObject {
+                                    put("name", toolName)
+                                    put("response", buildJsonObject {
                                         put("name", toolName)
-                                        put("response", buildJsonObject {
-                                            put("name", toolName)
-                                            put("success", toolResult.success)
-                                            put("content", toolResult.message)
-                                            if (toolResult.dataJson != null) {
-                                                val parsedData = try {
-                                                    json.parseToJsonElement(toolResult.dataJson)
-                                                } catch (e: Exception) {
-                                                    null
-                                                }
-                                                if (parsedData != null) {
-                                                    put("data", parsedData)
-                                                } else {
-                                                    put("data", toolResult.dataJson)
-                                                }
+                                        put("success", toolResult.success)
+                                        put("content", toolResult.message)
+                                        if (toolResult.dataJson != null) {
+                                            val parsedData = runCatching {
+                                                json.parseToJsonElement(toolResult.dataJson)
+                                            }.getOrNull()
+                                            if (parsedData != null) {
+                                                put("data", parsedData)
+                                            } else {
+                                                put("data", toolResult.dataJson)
                                             }
-                                        })
+                                        }
                                     })
                                 })
                             })
+                        }
+                    }
+
+                    // 3. Append user's function responses turn to contents
+                    contentsArray.add(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("parts", responseParts)
                         }
                     )
                     // Continue loop so Gemini synthesizes final response with function outcome
