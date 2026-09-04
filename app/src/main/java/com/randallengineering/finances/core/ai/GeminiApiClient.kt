@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.core.ai
+package com.randallengineering.finances.core.ai
 
 import com.randallengineering.finances.core.network.Resource
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +29,7 @@ class GeminiApiClient(
      */
     suspend fun generateChatResponse(
         apiKey: String,
-        modelName: String = "gemini-2.5-flash",
+        modelName: String = "gemini-3.8-flash",
         systemPrompt: String,
         userMessage: String,
         history: List<Pair<String, String>> = emptyList() // Pair(role "user"/"model", text)

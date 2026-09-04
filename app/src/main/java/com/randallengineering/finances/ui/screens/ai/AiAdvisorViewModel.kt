@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.ui.screens.ai
+package com.randallengineering.finances.ui.screens.ai
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,6 +39,8 @@ data class AiAdvisorUiState(
     val apiKey: String = "",
     val isApiKeyConfigured: Boolean = false,
     val providerMode: AiProviderMode = AiProviderMode.CUSTOM_KEY,
+    val selectedModel: String = AiConfigRepository.DEFAULT_MODEL,
+    val availableModels: List<String> = AiConfigRepository.SUPPORTED_MODELS,
     val showApiKeyDialog: Boolean = false,
     val apiKeyInput: String = "",
     val snapshot: AiSnapshot? = null,
@@ -72,7 +74,8 @@ class AiAdvisorViewModel(
                         apiKey = config.apiKey,
                         isApiKeyConfigured = config.isKeyConfigured,
                         providerMode = config.providerMode,
-                        apiKeyInput = config.apiKey
+                        apiKeyInput = config.apiKey,
+                        selectedModel = config.selectedModel
                     )
                 }
             }
@@ -126,9 +129,14 @@ class AiAdvisorViewModel(
         _uiState.update { it.copy(showApiKeyDialog = false) }
     }
 
-    fun saveApiKey(key: String, mode: AiProviderMode) {
-        aiConfigRepository.saveConfig(apiKey = key.trim(), providerMode = mode)
+    fun saveApiKey(key: String, mode: AiProviderMode, model: String = _uiState.value.selectedModel) {
+        aiConfigRepository.saveConfig(apiKey = key.trim(), providerMode = mode, selectedModel = model)
         _uiState.update { it.copy(showApiKeyDialog = false) }
+    }
+
+    fun onModelSelected(model: String) {
+        aiConfigRepository.setSelectedModel(model)
+        _uiState.update { it.copy(selectedModel = model) }
     }
 
     fun sendMessage(customText: String? = null) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -330,6 +331,57 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    Text(
+                        text = "Gemini Model",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Default is Gemini 3.8 Flash. Select from the quick choices below or enter a custom model ID.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Quick model selection chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.availableModels.forEach { modelName ->
+                            FilterChip(
+                                selected = uiState.selectedModel == modelName,
+                                onClick = { viewModel.onModelChange(modelName) },
+                                label = {
+                                    Text(
+                                        text = if (modelName == "gemini-3.8-flash") "3.8 Flash (Default)"
+                                        else modelName.removePrefix("gemini-")
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = uiState.selectedModel,
+                        onValueChange = { viewModel.onModelChange(it) },
+                        label = { Text("Active Model") },
+                        placeholder = { Text("gemini-3.8-flash") },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

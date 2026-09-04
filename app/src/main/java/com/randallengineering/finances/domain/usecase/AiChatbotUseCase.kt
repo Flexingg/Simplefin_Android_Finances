@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.domain.usecase
+package com.randallengineering.finances.domain.usecase
 
 import com.randallengineering.finances.core.ai.FinancialMcpTools
 import com.randallengineering.finances.core.ai.GeminiApiClient
@@ -82,7 +82,7 @@ class AiChatbotUseCase(
         // 2. Try Gemini API Client if configured
         val apiKey = aiConfigRepository?.getApiKey().orEmpty()
         val providerMode = aiConfigRepository?.getProviderMode() ?: AiProviderMode.CUSTOM_KEY
-        val model = aiConfigRepository?.getSelectedModel() ?: "gemini-2.5-flash"
+        val model = aiConfigRepository?.getSelectedModel() ?: "gemini-3.8-flash"
 
         if (geminiApiClient != null && apiKey.isNotBlank() && providerMode == AiProviderMode.CUSTOM_KEY) {
             val historyPairs = conversationHistory.takeLast(10).map { msg ->

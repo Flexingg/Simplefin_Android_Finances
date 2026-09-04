@@ -49,6 +49,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -117,8 +118,10 @@ fun AiAdvisorScreen(
         GeminiApiKeyModal(
             currentKey = uiState.apiKeyInput,
             currentMode = uiState.providerMode,
+            currentModel = uiState.selectedModel,
+            availableModels = uiState.availableModels,
             onDismiss = { viewModel.closeApiKeyDialog() },
-            onSave = { key, mode -> viewModel.saveApiKey(key, mode) }
+            onSave = { key, mode, model -> viewModel.saveApiKey(key, mode, model) }
         )
     }
 
@@ -140,6 +143,15 @@ fun AiAdvisorScreen(
                         Column {
                             Text("AI Financial Advisor", fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
                             // Gemini Status Pill
+                            val modelLabel = when (uiState.selectedModel) {
+                                "gemini-3.8-flash" -> "Gemini 3.8 Flash"
+                                "gemini-2.5-flash" -> "Gemini 2.5 Flash"
+                                "gemini-2.5-pro" -> "Gemini 2.5 Pro"
+                                "gemini-2.0-flash" -> "Gemini 2.0 Flash"
+                                "gemini-1.5-flash" -> "Gemini 1.5 Flash"
+                                "gemini-1.5-pro" -> "Gemini 1.5 Pro"
+                                else -> uiState.selectedModel
+                            }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
@@ -156,7 +168,7 @@ fun AiAdvisorScreen(
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = if (uiState.isApiKeyConfigured) "Gemini 2.5 Flash (Active)" else "Built-in / Set Key",
+                                    text = if (uiState.isApiKeyConfigured) "$modelLabel (Active)" else "$modelLabel (Built-in)",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (uiState.isApiKeyConfigured) FinanceGreenDark else MaterialTheme.colorScheme.onPrimaryContainer
@@ -488,11 +500,14 @@ fun ThinkingIndicatorBubble() {
 fun GeminiApiKeyModal(
     currentKey: String,
     currentMode: AiProviderMode,
+    currentModel: String = "gemini-3.8-flash",
+    availableModels: List<String> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (String, AiProviderMode) -> Unit
+    onSave: (String, AiProviderMode, String) -> Unit
 ) {
     var keyInput by remember { mutableStateOf(currentKey) }
     var selectedMode by remember { mutableStateOf(currentMode) }
+    var selectedModel by remember { mutableStateOf(currentModel) }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -552,11 +567,51 @@ fun GeminiApiKeyModal(
                         color = FinanceGreenDark
                     )
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    "Gemini Model",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (availableModels.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        availableModels.forEach { modelName ->
+                            FilterChip(
+                                selected = selectedModel == modelName,
+                                onClick = { selectedModel = modelName },
+                                label = {
+                                    Text(
+                                        text = if (modelName == "gemini-3.8-flash") "3.8 Flash (Default)"
+                                        else modelName.removePrefix("gemini-")
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = FinanceGreen.copy(alpha = 0.2f))
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = selectedModel,
+                    onValueChange = { selectedModel = it },
+                    label = { Text("Active Model ID") },
+                    placeholder = { Text("gemini-3.8-flash") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(keyInput, selectedMode) },
+                onClick = { onSave(keyInput, selectedMode, selectedModel.trim().ifBlank { "gemini-3.8-flash" }) },
                 colors = ButtonDefaults.buttonColors(containerColor = FinanceGreen),
                 shape = RoundedCornerShape(8.dp)
             ) {

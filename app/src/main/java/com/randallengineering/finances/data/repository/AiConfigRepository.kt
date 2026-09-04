@@ -1,4 +1,4 @@
-﻿package com.randallengineering.finances.data.repository
+package com.randallengineering.finances.data.repository
 
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +13,7 @@ enum class AiProviderMode {
 data class AiConfig(
     val apiKey: String = "",
     val providerMode: AiProviderMode = AiProviderMode.CUSTOM_KEY,
-    val selectedModel: String = "gemini-2.5-flash"
+    val selectedModel: String = AiConfigRepository.DEFAULT_MODEL
 ) {
     val isKeyConfigured: Boolean
         get() = apiKey.isNotBlank()
@@ -22,6 +22,18 @@ data class AiConfig(
 class AiConfigRepository(
     private val context: Context
 ) {
+    companion object {
+        const val DEFAULT_MODEL = "gemini-3.8-flash"
+        val SUPPORTED_MODELS = listOf(
+            "gemini-3.8-flash",
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro"
+        )
+    }
+
     private val prefs = context.getSharedPreferences("randall_ai_config", Context.MODE_PRIVATE)
 
     private val _configFlow = MutableStateFlow(loadConfig())
@@ -31,7 +43,8 @@ class AiConfigRepository(
         val key = prefs.getString("gemini_api_key", "").orEmpty()
         val modeStr = prefs.getString("ai_provider_mode", AiProviderMode.CUSTOM_KEY.name)
         val mode = try { AiProviderMode.valueOf(modeStr ?: AiProviderMode.CUSTOM_KEY.name) } catch (e: Exception) { AiProviderMode.CUSTOM_KEY }
-        val model = prefs.getString("selected_model", "gemini-2.5-flash") ?: "gemini-2.5-flash"
+        val savedModel = prefs.getString("selected_model", null)
+        val model = if (savedModel.isNullOrBlank() || savedModel == "gemini-2.5-flash") DEFAULT_MODEL else savedModel
         return AiConfig(apiKey = key, providerMode = mode, selectedModel = model)
     }
 
@@ -41,13 +54,14 @@ class AiConfigRepository(
 
     fun getSelectedModel(): String = _configFlow.value.selectedModel
 
-    fun saveConfig(apiKey: String, providerMode: AiProviderMode, selectedModel: String = "gemini-2.5-flash") {
+    fun saveConfig(apiKey: String, providerMode: AiProviderMode, selectedModel: String = DEFAULT_MODEL) {
+        val cleanModel = selectedModel.trim().ifBlank { DEFAULT_MODEL }
         prefs.edit()
             .putString("gemini_api_key", apiKey.trim())
             .putString("ai_provider_mode", providerMode.name)
-            .putString("selected_model", selectedModel)
+            .putString("selected_model", cleanModel)
             .apply()
-        _configFlow.value = AiConfig(apiKey = apiKey.trim(), providerMode = providerMode, selectedModel = selectedModel)
+        _configFlow.value = AiConfig(apiKey = apiKey.trim(), providerMode = providerMode, selectedModel = cleanModel)
     }
 
     fun setApiKey(apiKey: String) {
@@ -56,5 +70,9 @@ class AiConfigRepository(
 
     fun setProviderMode(mode: AiProviderMode) {
         saveConfig(_configFlow.value.apiKey, mode, _configFlow.value.selectedModel)
+    }
+
+    fun setSelectedModel(model: String) {
+        saveConfig(_configFlow.value.apiKey, _configFlow.value.providerMode, model)
     }
 }

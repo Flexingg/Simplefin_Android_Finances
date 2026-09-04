@@ -134,11 +134,13 @@ class UserDataSyncManager(
         val localMode = aiConfigRepository.getProviderMode()
         val localIncomeCat = categoryRepository.getIncomeCategory()
         val localSetpoint = discretionaryRepository.config.value.setpoint
+        val localModel = aiConfigRepository.getSelectedModel()
 
         val cloudSimpleFin = snapshot?.getString("simplefin_access_url")
         val cloudClaimedAt = snapshot?.getLong("simplefin_claimed_at") ?: System.currentTimeMillis()
         val cloudApiKey = snapshot?.getString("gemini_api_key")
         val cloudMode = snapshot?.getString("ai_provider_mode")
+        val cloudModel = snapshot?.getString("selected_model")
         val cloudIncomeCat = snapshot?.getString("income_category")
         val cloudSetpoint = snapshot?.getDouble("discretionary_setpoint")
 
@@ -159,16 +161,20 @@ class UserDataSyncManager(
         // Gemini AI settings restore / push
         if (localApiKey.isBlank() && !cloudApiKey.isNullOrBlank()) {
             val mode = if (cloudMode == AiProviderMode.BUILTIN_VERTEX.name) AiProviderMode.BUILTIN_VERTEX else AiProviderMode.CUSTOM_KEY
-            aiConfigRepository.saveConfig(cloudApiKey, mode)
+            val model = cloudModel ?: AiConfigRepository.DEFAULT_MODEL
+            aiConfigRepository.saveConfig(cloudApiKey, mode, model)
             Log.i(TAG, "Restored Gemini AI config from cloud")
-        } else if (localApiKey.isNotBlank() && cloudApiKey != localApiKey) {
+        } else if (localApiKey.isNotBlank() && (cloudApiKey != localApiKey || cloudModel != localModel)) {
             settingsDocRef.set(
                 mapOf(
                     "gemini_api_key" to localApiKey,
-                    "ai_provider_mode" to localMode.name
+                    "ai_provider_mode" to localMode.name,
+                    "selected_model" to localModel
                 ),
                 SetOptions.merge()
             ).await()
+        } else if (!cloudModel.isNullOrBlank() && cloudModel != localModel) {
+            aiConfigRepository.setSelectedModel(cloudModel)
         }
 
         // Income category restore / push

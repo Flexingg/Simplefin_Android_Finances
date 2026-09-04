@@ -39,6 +39,8 @@ data class SettingsUiState(
     val accountDisplayName: String? = null,
     val geminiApiKeyInput: String = "",
     val aiProviderMode: AiProviderMode = AiProviderMode.CUSTOM_KEY,
+    val selectedModel: String = AiConfigRepository.DEFAULT_MODEL,
+    val availableModels: List<String> = AiConfigRepository.SUPPORTED_MODELS,
     val isTestingGemini: Boolean = false,
     val successMessage: String? = null,
     val errorMessage: String? = null,
@@ -101,7 +103,8 @@ class SettingsViewModel(
         _uiState.update {
             it.copy(
                 geminiApiKeyInput = config.apiKey,
-                aiProviderMode = config.providerMode
+                aiProviderMode = config.providerMode,
+                selectedModel = config.selectedModel
             )
         }
     }
@@ -246,11 +249,18 @@ class SettingsViewModel(
         aiConfigRepository.setProviderMode(mode)
     }
 
+    fun onModelChange(model: String) {
+        val clean = model.trim().ifBlank { AiConfigRepository.DEFAULT_MODEL }
+        _uiState.update { it.copy(selectedModel = clean) }
+        aiConfigRepository.setSelectedModel(clean)
+    }
+
     fun saveGeminiConfig() {
         val key = _uiState.value.geminiApiKeyInput.trim()
         val mode = _uiState.value.aiProviderMode
-        aiConfigRepository.saveConfig(key, mode)
-        _uiState.update { it.copy(successMessage = "Gemini AI settings saved!") }
+        val model = _uiState.value.selectedModel
+        aiConfigRepository.saveConfig(key, mode, model)
+        _uiState.update { it.copy(successMessage = "Gemini AI settings saved (Model: $model)!") }
     }
 
     fun testGeminiConnection() {
@@ -264,6 +274,7 @@ class SettingsViewModel(
             _uiState.update { it.copy(isTestingGemini = true, errorMessage = null) }
             when (val res = geminiApiClient.generateChatResponse(
                 apiKey = key,
+                modelName = _uiState.value.selectedModel,
                 systemPrompt = "You are a test agent.",
                 userMessage = "Ping test: respond with 'OK'."
             )) {
