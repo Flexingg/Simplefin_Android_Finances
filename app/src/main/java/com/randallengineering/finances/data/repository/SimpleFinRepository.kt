@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
@@ -213,6 +214,11 @@ class SimpleFinRepository(
 
                         collectedErrors.addAll(data.allErrors)
 
+                        // Preserve existing local curation (category, subcategory, matched rule,
+                        // notes, splits) so a re-sync never reverts what rules or the user set.
+                        val existingById = transactionRepository.getTransactionsFlow()
+                            .first().getOrNull().orEmpty().associateBy { it.id }
+
                         for (acc in data.accounts) {
                             // Capture live account + balance (source of truth for net worth).
                             allAccountsMap[acc.id] = SimpleFinAccount(
@@ -226,17 +232,30 @@ class SimpleFinRepository(
                             )
                             for (tx in acc.transactions) {
                                 val amountDouble = tx.amount.toDoubleOrNull() ?: 0.0
-                                allTransactionsMap[tx.id] = Transaction(
-                                    id = tx.id,
-                                    accountId = acc.id,
-                                    postedEpochSeconds = tx.posted,
-                                    amount = amountDouble,
-                                    originalDesc = tx.description.ifBlank { tx.payee.orEmpty().ifBlank { "Transaction" } },
-                                    payee = tx.payee.orEmpty(),
-                                    notes = tx.memo.orEmpty(),
-                                    pending = tx.pending,
-                                    category = if (amountDouble > 0) "Income" else "Uncategorized"
-                                )
+                                val existing = existingById[tx.id]
+                                allTransactionsMap[tx.id] = if (existing != null) {
+                                    // Keep user/rule curation, only refresh live SimpleFIN fields.
+                                    existing.copy(
+                                        accountId = acc.id,
+                                        postedEpochSeconds = tx.posted,
+                                        amount = amountDouble,
+                                        originalDesc = tx.description.ifBlank { tx.payee.orEmpty().ifBlank { existing.originalDesc } },
+                                        payee = tx.payee.orEmpty().ifBlank { existing.payee },
+                                        pending = tx.pending
+                                    )
+                                } else {
+                                    Transaction(
+                                        id = tx.id,
+                                        accountId = acc.id,
+                                        postedEpochSeconds = tx.posted,
+                                        amount = amountDouble,
+                                        originalDesc = tx.description.ifBlank { tx.payee.orEmpty().ifBlank { "Transaction" } },
+                                        payee = tx.payee.orEmpty(),
+                                        notes = tx.memo.orEmpty(),
+                                        pending = tx.pending,
+                                        category = if (amountDouble > 0) "Income" else "Uncategorized"
+                                    )
+                                }
                             }
                         }
                     } else {

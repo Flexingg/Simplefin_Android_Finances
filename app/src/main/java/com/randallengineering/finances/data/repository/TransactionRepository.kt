@@ -14,6 +14,7 @@ import com.randallengineering.finances.domain.model.TransactionSplit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -167,6 +168,9 @@ class TransactionRepository(
         }
     }
 
+    private suspend fun existingTransactionIds(): Set<String> =
+        getTransactionsFlow().first().getOrNull().orEmpty().map { it.id }.toSet()
+
     private fun attachFirestoreListenerIfAvailable() {
         try {
             firestore?.collection(SyncScope.path("transactions"))
@@ -175,10 +179,19 @@ class TransactionRepository(
                     if (error == null && snapshot != null && !snapshot.isEmpty) {
                         ioScope.launch {
                             try {
-                                val rows = snapshot.documents.mapNotNull { doc ->
+                                val fetched = snapshot.documents.mapNotNull { doc ->
                                     doc.toObject(TransactionEntity::class.java)?.copy(id = doc.id)?.toDomain()
-                                }.map { toRow(sanitize(it)) }
-                                if (rows.isNotEmpty()) dao.upsertAll(rows)
+                                }
+                                if (fetched.isEmpty()) return@launch
+                                // Only ADD transactions that don't exist locally yet. Never
+                                // overwrite an existing local transaction: Room (with the
+                                // user's manual/rule categories) is authoritative; Firestore is
+                                // a backup that can lag behind and would otherwise revert edits.
+                                val existingIds = existingTransactionIds()
+                                val newRows = fetched
+                                    .filter { it.id !in existingIds }
+                                    .map { toRow(sanitize(it)) }
+                                if (newRows.isNotEmpty()) dao.upsertAll(newRows)
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }

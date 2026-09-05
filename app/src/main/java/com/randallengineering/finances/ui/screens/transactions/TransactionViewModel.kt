@@ -224,16 +224,57 @@ class TransactionViewModel(
     }
 
     fun saveGeneratedRule(rule: Rule) {
+        val source = _uiState.value.selectedTransactionForRuleGen
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             when (val result = ruleRepository.saveRule(rule)) {
                 is Resource.Success -> {
                     categoryRepository.addOrUpdateCategory(rule.category, rule.subCategory.ifBlank { null })
+                    // Apply the new rule to the transaction it was created from, using the
+                    // same reliable save path as a manual category change.
+                    var applied = 0
+                    if (source != null && rule.isActive && rule.matches(source.originalDesc, source.amount)) {
+                        val updated = source.copy(
+                            category = rule.category,
+                            subCategory = rule.subCategory,
+                            matchedRuleId = rule.id
+                        )
+                        if (transactionRepository.saveTransaction(updated) is Resource.Success) applied = 1
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             selectedTransactionForRuleGen = null,
-                            successMessage = "Auto-rule '${rule.name}' saved and applied!"
+                            successMessage = if (applied == 1)
+                                "Auto-rule '${rule.name}' saved & applied to this transaction!"
+                            else
+                                "Auto-rule '${rule.name}' saved (didn't match this transaction)"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
+                }
+                is Resource.Loading -> Unit
+            }
+        }
+    }
+
+    /** Applies ONE rule to ONE transaction right now (manual, reliable save path). */
+    fun runRuleOnThisTransaction(rule: Rule, transaction: Transaction) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            val updated = transaction.copy(
+                category = rule.category,
+                subCategory = rule.subCategory,
+                matchedRuleId = rule.id
+            )
+            when (val result = transactionRepository.saveTransaction(updated)) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            successMessage = "Rule \"${rule.name}\" applied to this transaction → ${rule.category}"
                         )
                     }
                 }

@@ -410,6 +410,76 @@ fun TransactionDetailScreen(
                     }
                 }
 
+                // Auto-Rules that apply to THIS transaction
+                val matchingRules = remember(uiState.rules, transaction) {
+                    uiState.rules.filter { it.isActive && it.matches(transaction.originalDesc, transaction.amount) }
+                }
+                ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Auto-Rules that apply (${matchingRules.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (matchingRules.isEmpty()) {
+                            Text(
+                                text = "No auto-rules currently match this transaction.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            matchingRules.forEach { rule ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = rule.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "→ ${rule.category}${if (rule.subCategory.isNotBlank()) " / ${rule.subCategory}" else ""}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (transaction.matchedRuleId == rule.id) FinanceGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (transaction.matchedRuleId == rule.id) {
+                                        Text(
+                                            text = "applied",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = FinanceGreen
+                                        )
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = { viewModel.runRuleOnThisTransaction(rule, transaction) },
+                                            shape = Shapes.small
+                                        ) {
+                                            Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("Run")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Receipts & Attachments Section
                 ExpressiveCard(modifier = Modifier.fillMaxWidth()) {
                     Column(
